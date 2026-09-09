@@ -5,14 +5,15 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "prisma migrate deploy && next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test src/lib/*.test.ts",
+    "start:only": "next start"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

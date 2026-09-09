@@ -121,6 +121,46 @@ blobs:
 
 Everything cascades from `User`, so account deletion is a single statement.
 
+## Deploying to Railway
+
+Railway builds this with Nixpacks; `railway.json` pins the build and start
+commands. `npm start` runs `prisma migrate deploy` before booting, so schema
+changes apply on every deploy.
+
+1. **Create the project.** In Railway, *New Project → Deploy from GitHub repo*
+   and pick this repository and branch.
+2. **Add Postgres.** *New → Database → Add PostgreSQL* in the same project.
+3. **Set variables** on the app service:
+
+   | Variable | Value |
+   | --- | --- |
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (a Railway reference) |
+   | `AUTH_SECRET` | output of `openssl rand -base64 48` |
+   | `NEXT_PUBLIC_APP_URL` | your public URL, once you have one |
+
+   `APP_URL` is optional — Railway's `RAILWAY_PUBLIC_DOMAIN` is picked up
+   automatically at runtime. `NEXT_PUBLIC_APP_URL` is baked at build time, so
+   set it after generating a domain and redeploy once.
+4. **Generate a domain.** *Settings → Networking → Generate Domain*. Railway
+   injects `PORT`, which `next start` already honours.
+5. **Seed the reference data — required.** Goals, quotes, badges, challenges and
+   the recipe library live in the database, so the app is not usable until this
+   runs. Once, from a local checkout:
+
+   ```bash
+   npm install
+   npx @railway/cli login
+   npx @railway/cli link          # select the project and the app service
+   npx @railway/cli run npm run db:seed
+   ```
+
+   The seed is idempotent (every write is an upsert), so re-running it after a
+   content change is safe.
+
+Then open the domain and create an account. The lifetime-unlock button is a
+stand-in for checkout and is disabled in production unless `ALLOW_DEV_UNLOCK` is
+set — leave it unset for a real launch.
+
 ## Privacy
 
 Nothing is public by default and there is no social feed. Sharing is opt-in per

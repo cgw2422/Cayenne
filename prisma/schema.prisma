@@ -3,6 +3,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" covers local development; the Debian target keeps the client
+  // working on container hosts such as Railway, Render and Fly.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

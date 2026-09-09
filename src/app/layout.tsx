@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 
 import { BRAND, BRAND_COLORS } from "@/lib/brand";
+import { siteUrl } from "@/lib/site";
 import { ServiceWorker } from "@/components/ServiceWorker";
 
 import "./globals.css";
@@ -14,7 +15,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl()),
   title: { default: `${BRAND.name} — ${BRAND.tagline}`, template: `%s · ${BRAND.name}` },
   description: BRAND.description,
   applicationName: BRAND.name,

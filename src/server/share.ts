@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import type { ShareVariant } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { siteUrl } from "@/lib/site";
 import { MILESTONE_TITLES, type Milestone } from "@/lib/streak";
 
 export type ShareDraft = {
@@ -101,6 +102,5 @@ export async function createShareCard(userId: string, draft: ShareDraft) {
 }
 
 export function shareUrl(token: string) {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return `${base}/s/${token}`;
+  return `${siteUrl()}/s/${token}`;
 }
