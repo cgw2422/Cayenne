@@ -452,10 +452,12 @@ export function Toggle({
         on ? "fire-gradient" : "bg-cream-300",
       )}
     >
+      {/* Anchored with `left`, not the static position: a button centres its
+          content, which would otherwise offset the knob before it translates. */}
       <span
         className={cx(
-          "absolute top-1 size-6 rounded-full bg-white shadow-sm transition-transform",
-          on ? "translate-x-7" : "translate-x-1",
+          "absolute left-1 top-1 size-6 rounded-full bg-white shadow-sm transition-transform",
+          on ? "translate-x-6" : "translate-x-0",
         )}
       />
     </button>
