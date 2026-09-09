@@ -107,8 +107,9 @@ export function PowderField({
   for (let i = 0; i < count; i += 1) {
     const t = rand();
     const x = rand() * width;
-    // Bias grains toward the bottom, like powder that has settled.
-    const y = height * (0.5 + Math.pow(rand(), 0.6) * 0.5);
+    // Bias grains toward the bottom, like powder that has settled, but spread
+    // far enough up that the drift reads as part of the composition.
+    const y = height * (0.28 + Math.pow(rand(), 0.7) * 0.72);
     const r = 1 + t * 4.5;
     buckets[i % 3] += circlePath(x, y, r);
   }

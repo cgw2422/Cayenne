@@ -154,8 +154,6 @@ export type CardSpec = {
   stats: { icon: IconName; label: string; value: string }[];
   /** The line with personality. This is the scroll-stopper, not a stat. */
   voice: string;
-  /** Quiet descriptor under the voice line, e.g. "30 Day Hot Streak". */
-  descriptor: string | null;
   quote: string | null;
   ring: { done: number; total: number; percent: number } | null;
   footnote: string | null;

@@ -333,22 +333,6 @@ function Lockup({ theme, u, invert }: { theme: Theme; u: number; invert?: boolea
   );
 }
 
-function Descriptor({ text, u, color }: { text: string; u: number; color: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        fontSize: 26 * u,
-        fontWeight: 800,
-        letterSpacing: 3 * u,
-        color,
-      }}
-    >
-      {text.toUpperCase()}
-    </div>
-  );
-}
-
 function Ring({ percent, u, track, accent, ink, soft }: {
   percent: number; u: number; track: string; accent: string; ink: string; soft: string;
 }) {
@@ -389,8 +373,8 @@ function Signature(ctx: Ctx) {
   const { spec, theme, width, height, u } = ctx;
   return (
     <Surface {...ctx} padX={90 * u} padY={66 * u}>
-      <Layer top={0} left={0} width={width} height={height * 0.42}>
-        <Halftone width={width} height={height * 0.42} color={theme.accent} gap={30 * u} radius={3 * u} opacity={0.09} />
+      <Layer top={0} left={0} width={width} height={height}>
+        <Halftone width={width} height={height} color={theme.accent} gap={30 * u} radius={3 * u} opacity={0.08} />
       </Layer>
       {/* pepper anchored to the hero, breaking the grid a little */}
       <Layer top={height * 0.16} left={-46 * u}>
@@ -435,7 +419,6 @@ function Signature(ctx: Ctx) {
         {spec.stats.length ? (
           <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
         ) : null}
-        {spec.descriptor ? <Descriptor text={spec.descriptor} u={u} color={theme.inkSoft} /> : null}
         <Lockup theme={theme} u={u} />
       </div>
     </Surface>
@@ -511,7 +494,6 @@ function OnFire(ctx: Ctx) {
         {spec.stats.length ? (
           <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
         ) : null}
-        {spec.descriptor ? <Descriptor text={spec.descriptor} u={u} color={theme.inkSoft} /> : null}
         <Lockup theme={theme} u={u} />
       </div>
     </Surface>
@@ -523,8 +505,8 @@ function Fresh(ctx: Ctx) {
   const { spec, theme, width, height, u } = ctx;
   return (
     <Surface {...ctx} padX={88 * u} padY={64 * u}>
-      <Layer bottom={0} left={0} width={width} height={height * 0.45}>
-        <PowderField width={width} height={height * 0.45} color={theme.accent} count={150} opacity={0.5} />
+      <Layer bottom={0} left={0} width={width} height={height * 0.58}>
+        <PowderField width={width} height={height * 0.58} color={theme.accent} count={210} opacity={0.5} />
       </Layer>
       <Layer top={-40 * u} left={-60 * u}>
         <Pepper size={280 * u} rotate={38} {...theme.pepper} opacity={0.9} />
@@ -567,7 +549,6 @@ function Fresh(ctx: Ctx) {
         {spec.stats.length ? (
           <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
         ) : null}
-        {spec.descriptor ? <Descriptor text={spec.descriptor} u={u} color={theme.inkSoft} /> : null}
         <Lockup theme={theme} u={u} />
       </div>
     </Surface>
@@ -591,7 +572,7 @@ function MascotLayout(ctx: Ctx) {
       </div>
 
       {/* number and character share the stage, side by side */}
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", flex: 1, justifyContent: "center", paddingTop: 30 * u, paddingBottom: 30 * u }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 * u }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             {spec.eyebrow ? (
@@ -637,7 +618,6 @@ function MascotLayout(ctx: Ctx) {
         {spec.stats.length ? (
           <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
         ) : null}
-        {spec.descriptor ? <Descriptor text={spec.descriptor} u={u} color={theme.inkSoft} /> : null}
         <Lockup theme={theme} u={u} />
       </div>
     </Surface>

@@ -86,17 +86,3 @@ export function voiceFor(kind: ShareKind, streak: number, totalDays: number): st
   const seed = (streak * 31 + totalDays * 17 + kind.length * 7) >>> 0;
   return pool[seed % pool.length];
 }
-
-/**
- * A quiet line above the lockup. Only used where it adds something the hero
- * doesn't already say — on a streak card the unit already reads "DAY HOT
- * STREAK", so repeating it there is noise.
- */
-export function descriptorFor(
-  kind: ShareKind,
-  context: { challengeTitle?: string | null; achievementTitle?: string | null },
-): string | null {
-  if (kind === "CHALLENGE" && context.challengeTitle) return context.challengeTitle;
-  if (kind === "ACHIEVEMENT" && context.achievementTitle) return context.achievementTitle;
-  return null;
-}

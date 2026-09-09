@@ -1,5 +1,5 @@
 import type { IconName } from "@/lib/share/icons";
-import { descriptorFor, voiceFor } from "@/lib/share/voice";
+import { voiceFor } from "@/lib/share/voice";
 import type { CardSpec, CardStats, ShareKind, ShareToggles } from "@/lib/share/types";
 
 /**
@@ -15,10 +15,6 @@ export function buildSpec(
   const chip = (icon: IconName, label: string, value: string) => ({ icon, label, value });
   const quote = toggles.quote && stats.quote ? stats.quote : null;
   const voice = voiceFor(kind, stats.streak, stats.totalDays);
-  const descriptor = descriptorFor(kind, {
-    challengeTitle: stats.challengeTitle,
-    achievementTitle: stats.achievementTitle,
-  });
 
   switch (kind) {
     case "HOT_STREAK": {
@@ -37,7 +33,6 @@ export function buildSpec(
         heroTitle: null,
         subline: null,
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: null,
@@ -62,7 +57,6 @@ export function buildSpec(
         heroTitle: null,
         subline: null,
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: null,
@@ -90,7 +84,6 @@ export function buildSpec(
         heroTitle: numeric ? null : (stats.achievementTitle ?? "Achievement unlocked"),
         subline: stats.achievementDescription ?? "Another badge in the collection.",
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: null,
@@ -114,7 +107,6 @@ export function buildSpec(
         heroTitle: null,
         subline: left > 0 ? `${left} ${left === 1 ? "day" : "days"} to go` : "Complete.",
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: { done: day, total, percent },
@@ -146,7 +138,6 @@ export function buildSpec(
         heroTitle: null,
         subline: null,
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: null,
@@ -168,7 +159,6 @@ export function buildSpec(
         heroTitle: stats.quote ?? "Small habit. Big fire.",
         subline: null,
         voice,
-        descriptor,
         stats: stats_,
         quote: null,
         ring: null,
@@ -198,7 +188,6 @@ export function buildSpec(
         heroTitle: null,
         subline: "Keeping it spicy.",
         voice,
-        descriptor,
         stats: stats_,
         quote,
         ring: null,
