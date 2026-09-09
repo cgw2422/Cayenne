@@ -26,7 +26,13 @@ export const KIND_META: Record<
   MONTHLY_RECAP: { icon: "📅", label: "Monthly Recap", blurb: "A month, summed up." },
 };
 
-/** Six designed themes. Users swipe between them before exporting. */
+/**
+ * Six designed themes, plus one that only exists when the user brings a photo.
+ *
+ * PHOTO is deliberately not in `STANDARD_THEME_IDS`: it is a special template
+ * for Journey cards, offered once a photo is attached, rather than a seventh
+ * option sitting in everyone's carousel with nothing to show.
+ */
 export const THEME_IDS = [
   "SIGNATURE",
   "ON_FIRE",
@@ -34,9 +40,19 @@ export const THEME_IDS = [
   "MASCOT",
   "MINIMAL",
   "FACEBOOK",
+  "PHOTO",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
+
+/** The themes any card can use, in carousel order. */
+export const STANDARD_THEME_IDS = THEME_IDS.filter((t) => t !== "PHOTO") as Exclude<
+  ThemeId,
+  "PHOTO"
+>[];
+
+/** Card types the photo template is offered for. */
+export const PHOTO_KINDS = ["JOURNEY"] as const;
 
 export const THEME_LABEL: Record<ThemeId, string> = {
   SIGNATURE: "Signature",
@@ -45,6 +61,7 @@ export const THEME_LABEL: Record<ThemeId, string> = {
   MASCOT: "Mascot",
   MINIMAL: "Minimal",
   FACEBOOK: "Facebook",
+  PHOTO: "Your photo",
 };
 
 /** Export sizes. Facebook is the default — it's the distribution channel. */

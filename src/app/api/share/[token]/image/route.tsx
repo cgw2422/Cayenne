@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { specFromCard } from "@/server/share/card";
 import { renderCardImage } from "@/server/share/image";
+import { loadSharePhoto } from "@/server/share/photo";
 import { SIZES, type SizeId } from "@/lib/share/types";
 
 export const runtime = "nodejs";
@@ -27,9 +28,12 @@ export async function GET(
     requested && requested in SIZES ? (requested as SizeId) : card.size;
   const scale = clampScale(url.searchParams.get("scale"));
 
+  const photo = card.photoId ? await loadSharePhoto(card.photoId) : null;
+
   return renderCardImage(specFromCard(card), card.theme, size, {
     scale,
     cache: "public",
+    photo,
   });
 }
 

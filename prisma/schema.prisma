@@ -49,6 +49,7 @@ model User {
   shareCards    ShareCard[]
   shareEvents   ShareEvent[]
   savedLines    SavedLine[]
+  sharePhotos   SharePhoto[]
 }
 
 /// Present from day one so Google/Apple sign-in is a row, not a migration.
@@ -469,6 +470,7 @@ enum ShareTheme {
   MASCOT
   MINIMAL
   FACEBOOK
+  PHOTO
 }
 
 /// The personality of a card's headline. Changes words only, never numbers.
@@ -504,6 +506,9 @@ model ShareCard {
   /// Which line the card was published with. `customLine` wins when set.
   lineIndex  Int?
   customLine String? @db.VarChar(120)
+
+  /// Set only when the user attached their own photo to a Journey card.
+  photoId String?
 
   streak         Int
   longestStreak  Int
@@ -542,7 +547,28 @@ model ShareCard {
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo SharePhoto? @relation(fields: [photoId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+/// A photo the user chose to put on a Journey card.
+///
+/// Nothing in the app produces one of these. It exists only because the user
+/// picked an image for a card they were about to post, which is the only way a
+/// photo can ever appear on a card. Deleting the user deletes the photo.
+model SharePhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  mime      String   @db.VarChar(32)
+  width     Int
+  height    Int
+  bytes     Bytes
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards ShareCard[]
 
   @@index([userId, createdAt])
 }

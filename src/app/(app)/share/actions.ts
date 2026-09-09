@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
 import { buildCardStats } from "@/server/share/stats";
 import { imageUrl, publishCard, shareUrl } from "@/server/share/publish";
+import { storeSharePhoto } from "@/server/share/photo";
 import { captionsFor, type CaptionStyle } from "@/lib/share/captions";
 import { DEFAULT_TONE, TONES, type Tone } from "@/lib/share/voice";
 import { linesFor } from "@/lib/share/lines";
@@ -33,6 +34,8 @@ export type PublishInput = {
   /** undefined keeps today's quote, null removes it, a string overrides it. */
   quote?: string | null;
   achievementId?: string | null;
+  /** Set only when the user attached their own photo. */
+  photoId?: string | null;
 };
 
 export type PublishResult =
@@ -85,6 +88,7 @@ export async function publishShareCard(input: PublishInput): Promise<PublishResu
     line,
     stats,
     toggles,
+    photoId: input.photoId ?? null,
   });
 
   await record(user.id, "IMAGE_GENERATED", { kind, theme, size });
@@ -210,6 +214,22 @@ export async function forgetLine(text: string): Promise<{ ok: boolean }> {
   const user = await requireUser();
   await prisma.savedLine.deleteMany({ where: { userId: user.id, text } });
   return { ok: true };
+}
+
+/**
+ * Stores a photo for the Journey photo template.
+ *
+ * The client downscales and re-encodes before this is called, so what arrives
+ * is already small. Nothing here reads the user's health data, and the photo
+ * only reaches a card if they then publish one with it attached.
+ */
+export async function uploadSharePhoto(input: {
+  dataUrl: string;
+  width: number;
+  height: number;
+}): Promise<{ ok: true; id: string } | { ok: false; message: string }> {
+  const user = await requireUser();
+  return storeSharePhoto(user.id, input);
 }
 
 /** Quotes the user can pick from, for the "choose another quote" option. */

@@ -38,13 +38,13 @@ export async function renderCardImage(
   spec: CardSpec,
   theme: ThemeId,
   size: SizeId,
-  options: { scale?: number; cache?: "public" | "private" } = {},
+  options: { scale?: number; cache?: "public" | "private"; photo?: string | null } = {},
 ) {
   const scale = options.scale ?? 1;
   const width = Math.round(SIZES[size].width * scale);
   const height = Math.round(SIZES[size].height * scale);
 
-  return new ImageResponse(renderCard(spec, theme, { width, height }), {
+  return new ImageResponse(renderCard(spec, theme, { width, height }, options.photo), {
     width,
     height,
     fonts: (await fonts()).map((f) => ({

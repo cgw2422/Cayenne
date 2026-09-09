@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { LinePicker } from "@/components/share/LinePicker";
+import { PhotoPicker } from "@/components/share/PhotoPicker";
 import { Button, Card, cx } from "@/components/ui/primitives";
 import { Toggle } from "@/components/Onboarding";
 import { CAPTION_STYLES, CAPTION_STYLE_LABEL, type CaptionStyle } from "@/lib/share/captions";
@@ -12,9 +13,10 @@ import {
   DEFAULT_TOGGLES,
   KIND_META,
   KIND_TOGGLES,
+  PHOTO_KINDS,
   SHARE_KINDS,
   SIZES,
-  THEME_IDS,
+  STANDARD_THEME_IDS,
   THEME_LABEL,
   TOGGLE_LABEL,
   type ShareKind,
@@ -60,6 +62,7 @@ export function ShareStudio({
   onLineOptions,
   onSaveLine,
   onForgetLine,
+  onUploadPhoto,
 }: {
   initialKind: ShareKind | null;
   initialTheme: ThemeId;
@@ -82,6 +85,11 @@ export function ShareStudio({
   }) => Promise<{ suggested: string[]; saved: string[] }>;
   onSaveLine: (text: string) => Promise<{ ok: boolean }>;
   onForgetLine: (text: string) => Promise<{ ok: boolean }>;
+  onUploadPhoto: (input: {
+    dataUrl: string;
+    width: number;
+    height: number;
+  }) => Promise<{ ok: true; id: string } | { ok: false; message: string }>;
 }) {
   const [step, setStep] = useState<Step>(initialKind ? "STYLE" : "CHOOSE");
   const [kind, setKind] = useState<ShareKind | null>(initialKind);
@@ -91,6 +99,7 @@ export function ShareStudio({
   const [toggles, setToggles] = useState<ShareToggles>(
     initialKind ? togglesForKind(initialKind, available) : DEFAULT_TOGGLES,
   );
+  const [photoId, setPhotoId] = useState<string | null>(null);
   const [lineIndex, setLineIndex] = useState(0);
   const [customLine, setCustomLine] = useState<string | null>(null);
   const [lines, setLines] = useState<{ suggested: string[]; saved: string[] }>({
@@ -155,11 +164,23 @@ export function ShareStudio({
       });
       if (customLine) query.set("line", customLine);
       else query.set("li", String(lineIndex));
+      if (photoId) query.set("photo", photoId);
       if (quoteParam !== null) query.set("quote", quoteParam);
       if (achievementId) query.set("achievement", achievementId);
       return `/api/share/preview?${query.toString()}`;
     },
-    [kind, theme, size, tone, toggles, lineIndex, customLine, quoteParam, achievementId],
+    [
+      kind,
+      theme,
+      size,
+      tone,
+      toggles,
+      lineIndex,
+      customLine,
+      photoId,
+      quoteParam,
+      achievementId,
+    ],
   );
 
   const previewSrc = useMemo(
@@ -202,6 +223,10 @@ export function ShareStudio({
                     setToggles(togglesForKind(k, available));
                     setLineIndex(0);
                     setCustomLine(null);
+                    setPhotoId(null);
+                    if (!(PHOTO_KINDS as readonly string[]).includes(k)) {
+                      setTheme((prev) => (prev === "PHOTO" ? "SIGNATURE" : prev));
+                    }
                     setResult(null);
                     void onTrack({ event: "TYPE_SELECTED", kind: k });
                     go("STYLE");
@@ -239,6 +264,12 @@ export function ShareStudio({
   }
 
   const relevant = KIND_TOGGLES[kind];
+  const photoAllowed = (PHOTO_KINDS as readonly string[]).includes(kind);
+  // The photo template is a real template, not a filter: it only appears once
+  // the user has given it something to be built around.
+  const templates: ThemeId[] = photoAllowed && photoId
+    ? [...STANDARD_THEME_IDS, "PHOTO"]
+    : STANDARD_THEME_IDS;
 
   return (
     <div className="flex flex-col gap-4 px-5 pb-8 pt-1">
@@ -286,7 +317,7 @@ export function ShareStudio({
               Template
             </p>
             <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-              {THEME_IDS.map((t) => (
+              {templates.map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -322,6 +353,23 @@ export function ShareStudio({
               ))}
             </div>
           </section>
+
+          {photoAllowed ? (
+            <PhotoPicker
+              hasPhoto={photoId !== null}
+              onUpload={onUploadPhoto}
+              onPicked={(id) => {
+                setPhotoId(id);
+                setTheme("PHOTO");
+                invalidate();
+              }}
+              onCleared={() => {
+                setPhotoId(null);
+                setTheme((prev) => (prev === "PHOTO" ? "SIGNATURE" : prev));
+                invalidate();
+              }}
+            />
+          ) : null}
 
           <section>
             <p className="mb-2.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-charcoal-500">
@@ -699,6 +747,7 @@ export function ShareStudio({
       tone,
       lineIndex,
       customLine,
+      photoId,
       achievementId,
     });
     setResult(r);

@@ -24,11 +24,25 @@ export function renderCard(
   spec: CardSpec,
   themeId: ThemeId,
   output: { width: number; height: number },
+  /** A data URI, present only when the user attached their own photo. */
+  photo?: string | null,
 ) {
   const theme = THEMES[themeId];
   const u = output.width / 1200;
-  const ctx: Ctx = { spec, theme, width: output.width, height: output.height, u };
+  const ctx: Ctx = {
+    spec,
+    theme,
+    width: output.width,
+    height: output.height,
+    u,
+    photo: photo ?? null,
+  };
 
+  // Without a photo the photo template has nothing to be, so it falls back
+  // rather than exporting a black rectangle.
+  if (theme.chrome === "photo") {
+    return ctx.photo ? <PhotoChrome {...ctx} /> : <StandardChrome {...ctx} theme={THEMES.SIGNATURE} />;
+  }
   if (theme.chrome === "facebook") return <FacebookChrome {...ctx} />;
   if (theme.chrome === "minimal") return <MinimalChrome {...ctx} />;
   return <StandardChrome {...ctx} />;
@@ -40,6 +54,7 @@ type Ctx = {
   width: number;
   height: number;
   u: number;
+  photo?: string | null;
 };
 
 // ----------------------------------------------------------------- pieces --
@@ -559,6 +574,190 @@ function MinimalChrome(ctx: Ctx) {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%" }}>
         <Lockup theme={theme} u={u} align="left" />
         <Stats {...ctx} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The user's own photo, full bleed.
+ *
+ * The photo is the card here — the numbers sit in a scrim along the bottom
+ * rather than competing with it, and the line is set over the image itself. A
+ * dark band runs the full width so white text stays legible over a photo of any
+ * brightness, which cannot be assumed.
+ */
+function PhotoChrome(ctx: Ctx) {
+  const { spec, theme, width, height, u, photo } = ctx;
+  const scrim = Math.round(height * 0.44);
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        background: theme.background,
+        fontFamily: "Nunito",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={photo ?? ""}
+        alt=""
+        width={width}
+        height={height}
+        style={{ position: "absolute", top: 0, left: 0, width, height, objectFit: "cover" }}
+      />
+
+      {/* Two flat bands rather than one gradient: gradients over a photo render
+          inconsistently, and legibility is not worth the risk. */}
+      <div
+        style={{
+          position: "absolute",
+          top: height - scrim,
+          left: 0,
+          width,
+          height: scrim,
+          display: "flex",
+          background:
+            "linear-gradient(180deg,rgba(10,8,6,0) 0%,rgba(10,8,6,0.55) 34%,rgba(10,8,6,0.86) 68%,rgba(10,8,6,0.93) 100%)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width,
+          height: 200 * u,
+          display: "flex",
+          background: "linear-gradient(180deg,rgba(10,8,6,0.62) 0%,rgba(10,8,6,0) 100%)",
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          top: 54 * u,
+          left: 64 * u,
+          display: "flex",
+          alignItems: "center",
+          gap: 14 * u,
+        }}
+      >
+        <Pepper size={46 * u} rotate={-14} {...theme.pepper} />
+        <div
+          style={{
+            display: "flex",
+            fontSize: 32 * u,
+            fontWeight: 900,
+            letterSpacing: 7 * u,
+            color: "#FFF7E8",
+          }}
+        >
+          CAYENNE DO IT
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          gap: 26 * u,
+          padding: `0 ${64 * u}px ${58 * u}px`,
+          width: "100%",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 24 * u }}>
+          {spec.heroValue ? (
+            <div
+              style={{
+                display: "flex",
+                fontSize: 230 * u,
+                fontWeight: 900,
+                lineHeight: 0.82,
+                letterSpacing: -8 * u,
+                color: "#FFF7E8",
+              }}
+            >
+              {spec.heroValue}
+            </div>
+          ) : null}
+          {spec.heroUnit ? (
+            <div
+              style={{
+                display: "flex",
+                fontSize: 46 * u,
+                fontWeight: 900,
+                letterSpacing: 3 * u,
+                color: theme.accent,
+                paddingBottom: 18 * u,
+                maxWidth: width - 380 * u,
+              }}
+            >
+              {spec.heroUnit}
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            fontSize: (spec.voice.length > 52 ? 48 : 56) * u,
+            fontWeight: 900,
+            lineHeight: 1.14,
+            color: "#FFF7E8",
+            maxWidth: width - 128 * u,
+          }}
+        >
+          {spec.voice}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            width: "100%",
+            paddingTop: 10 * u,
+          }}
+        >
+          {spec.rail ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 * u }}>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 26 * u,
+                  fontWeight: 800,
+                  letterSpacing: 3 * u,
+                  color: "rgba(255,247,232,0.7)",
+                }}
+              >
+                {spec.rail.from.toUpperCase()} — TODAY
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 30 * u,
+                  fontWeight: 800,
+                  letterSpacing: 4 * u,
+                  color: theme.accent,
+                }}
+              >
+                SMALL HABIT. BIG FIRE.
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex" }} />
+          )}
+          <Stats {...ctx} />
+        </div>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ import { renderCard } from "@/server/share/render";
 import {
   DEFAULT_TOGGLES,
   SIZES,
-  THEME_IDS,
+  STANDARD_THEME_IDS,
   type CardStats,
   type ShareKind,
   type SizeId,
@@ -53,6 +53,23 @@ const STATS: CardStats = {
   quote: "Consistency is hotter than motivation.",
 };
 
+/**
+ * Stands in for a user's photo when rendering samples. Deliberately busy and
+ * mid-toned: the scrim has to hold white text over an image like this, and a
+ * flat colour would not prove that.
+ */
+const STAND_IN_PHOTO = `data:image/svg+xml;base64,${Buffer.from(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500">
+     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+       <stop offset="0%" stop-color="#C9A27A"/><stop offset="52%" stop-color="#8A6B4F"/>
+       <stop offset="100%" stop-color="#4A3626"/></linearGradient></defs>
+     <rect width="1200" height="1500" fill="url(#g)"/>
+     <circle cx="820" cy="430" r="300" fill="#E8C79A" opacity="0.55"/>
+     <circle cx="300" cy="980" r="380" fill="#6B4A2E" opacity="0.5"/>
+     <rect x="120" y="620" width="520" height="520" rx="60" fill="#D9502A" opacity="0.62"/>
+   </svg>`,
+).toString("base64")}`;
+
 async function main() {
   mkdirSync(OUT, { recursive: true });
 
@@ -73,11 +90,12 @@ async function main() {
     size: SizeId,
     toggles = DEFAULT_TOGGLES,
     scale = 1,
+    photo: string | null = null,
   ) {
     const width = Math.round(SIZES[size].width * scale);
     const height = Math.round(SIZES[size].height * scale);
     const image = new ImageResponse(
-      renderCard(buildSpec(kind, STATS, toggles, DEFAULT_TONE), theme, { width, height }),
+      renderCard(buildSpec(kind, STATS, toggles, DEFAULT_TONE), theme, { width, height }, photo),
       { width, height, fonts },
     );
     writeFileSync(`${OUT}/${name}.png`, Buffer.from(await image.arrayBuffer()));
@@ -86,7 +104,7 @@ async function main() {
   const jobs: Promise<void>[] = [];
 
   // Every theme, same card, so they can be compared directly.
-  for (const theme of THEME_IDS) {
+  for (const theme of STANDARD_THEME_IDS) {
     jobs.push(write(`streak-${theme}`, "HOT_STREAK", theme, "FACEBOOK"));
   }
 
@@ -112,10 +130,16 @@ async function main() {
     jobs.push(write(`size-${size}`, "HOT_STREAK", "FACEBOOK", size));
   }
 
+  // The photo template, with a stand-in for a user's own photo.
+  jobs.push(write("photo-JOURNEY", "JOURNEY", "PHOTO", "FACEBOOK",
+    { ...DEFAULT_TOGGLES, consistency: true, startDate: true }, 1, STAND_IN_PHOTO));
+  jobs.push(write("thumb-PHOTO", "JOURNEY", "PHOTO", "FACEBOOK",
+    { ...DEFAULT_TOGGLES, consistency: true, startDate: true }, 350 / 1200, STAND_IN_PHOTO));
+
   // Thumbnails at Facebook feed width. Any text that fails to read here fails
   // in the feed, which is the only place these actually get seen.
   const THUMB = 350 / 1200;
-  for (const theme of THEME_IDS) {
+  for (const theme of STANDARD_THEME_IDS) {
     jobs.push(write(`thumb-${theme}`, "HOT_STREAK", theme, "FACEBOOK", DEFAULT_TOGGLES, THUMB));
   }
 

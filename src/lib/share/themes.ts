@@ -9,7 +9,7 @@ import type { ThemeId } from "@/lib/share/types";
 export type Theme = {
   id: ThemeId;
   /** Which frame the card sits in. */
-  chrome: "standard" | "minimal" | "facebook";
+  chrome: "standard" | "minimal" | "facebook" | "photo";
   /** Which illustration set decorates it. */
   decor: "peppersCorner" | "fire" | "harvest" | "confetti" | "none";
   background: string;
@@ -23,7 +23,6 @@ export type Theme = {
   pepper: { body: string; shade: string; stem: string };
   /** `tracked` is the understated line; `lockup` is the full brand block. */
   lockup: "tracked" | "lockup";
-  showDomain: boolean;
 };
 
 export const THEMES: Record<ThemeId, Theme> = {
@@ -41,7 +40,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "#E7D8BB",
     pepper: { body: "#D92D20", shade: "#A3170F", stem: "#2F6B53" },
     lockup: "lockup",
-    showDomain: false,
   },
 
   // Dark and dramatic: heat rings behind the number, flames along the base.
@@ -58,7 +56,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "rgba(255,247,232,0.16)",
     pepper: { body: "#FF6A45", shade: "#C9271B", stem: "#4CB07C" },
     lockup: "lockup",
-    showDomain: false,
   },
 
   // Natural and editorial: whole peppers and a drift of ground cayenne.
@@ -75,7 +72,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "rgba(18,55,42,0.22)",
     pepper: { body: "#C62A18", shade: "#8E1A0E", stem: "#2F6B53" },
     lockup: "lockup",
-    showDomain: true,
   },
 
   // The character carries it: mascot beside the number, speech bubble, confetti.
@@ -92,7 +88,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "rgba(32,32,32,0.14)",
     pepper: { body: "#DE3020", shade: "#A3170F", stem: "#2F6B53" },
     lockup: "lockup",
-    showDomain: false,
   },
 
   // Enormous type, left-aligned, almost nothing else.
@@ -109,7 +104,6 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "#ECE5D8",
     pepper: { body: "#D92D20", shade: "#A3170F", stem: "#2F6B53" },
     lockup: "tracked",
-    showDomain: false,
   },
 
   // Built to stop a thumb: the voice line leads, in a red band, above the number.
@@ -126,7 +120,23 @@ export const THEMES: Record<ThemeId, Theme> = {
     rule: "rgba(255,247,232,0.18)",
     pepper: { body: "#FF6A45", shade: "#C9271B", stem: "#4CB07C" },
     lockup: "tracked",
-    showDomain: true,
+  },
+
+  // The user's own photo, full bleed, with the numbers set into a scrim along
+  // the bottom. Only offered once they've actually attached one.
+  PHOTO: {
+    id: "PHOTO",
+    chrome: "photo",
+    decor: "none",
+    background: "#12100E",
+    ink: "#FFF7E8",
+    inkSoft: "rgba(255,247,232,0.74)",
+    accent: "#FFB020",
+    accentSoft: "#F15A24",
+    hero: "#FFF7E8",
+    rule: "rgba(255,247,232,0.24)",
+    pepper: { body: "#FF6A45", shade: "#C9271B", stem: "#4CB07C" },
+    lockup: "tracked",
   },
 };
 

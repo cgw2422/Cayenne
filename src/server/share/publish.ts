@@ -18,6 +18,7 @@ export async function publishCard(input: {
   line: { index: number } | { custom: string };
   stats: CardStats;
   toggles: ShareToggles;
+  photoId?: string | null;
 }) {
   return prisma.shareCard.create({
     data: {
@@ -29,6 +30,7 @@ export async function publishCard(input: {
       tone: input.tone,
       lineIndex: "index" in input.line ? input.line.index : null,
       customLine: "custom" in input.line ? input.line.custom : null,
+      photoId: input.photoId ?? null,
       ...cardColumnsFrom(input.stats, input.toggles),
     },
   });

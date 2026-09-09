@@ -13,6 +13,7 @@ import { DEFAULT_TONE, TONES, type Tone } from "@/lib/share/voice";
 import { getSessionUser } from "@/server/auth";
 import { buildCardStats } from "@/server/share/stats";
 import { renderCardImage } from "@/server/share/image";
+import { loadSharePhoto } from "@/server/share/photo";
 
 export const runtime = "nodejs";
 
@@ -47,14 +48,21 @@ export async function GET(request: Request) {
   const toggles = readToggles(params);
   const quoteOverride = params.has("quote") ? params.get("quote") || null : undefined;
 
-  const stats = await buildCardStats(user, {
-    achievementId: params.get("achievement") ?? undefined,
-    quoteOverride,
-  });
+  const photoId = params.get("photo");
+  const [stats, photo] = await Promise.all([
+    buildCardStats(user, {
+      achievementId: params.get("achievement") ?? undefined,
+      quoteOverride,
+    }),
+    // Ownership is checked here, not on the client: a preview URL must never be
+    // a way to read somebody else's photo.
+    photoId ? loadSharePhoto(photoId, user.id) : Promise.resolve(null),
+  ]);
 
   return renderCardImage(buildSpec(kind, stats, toggles, tone, line), theme, size, {
     scale: clampScale(params.get("scale")),
     cache: "private",
+    photo,
   });
 }
 

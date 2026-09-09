@@ -13,6 +13,7 @@ import {
   quoteChoices,
   saveLine,
   trackShareEvent,
+  uploadSharePhoto,
 } from "./actions";
 
 export const metadata = { title: "Share Studio" };
@@ -76,6 +77,7 @@ export default async function SharePage({
         onLineOptions={lineOptions}
         onSaveLine={saveLine}
         onForgetLine={forgetLine}
+        onUploadPhoto={uploadSharePhoto}
       />
     </>
   );
