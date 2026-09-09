@@ -39,6 +39,11 @@ export async function GET(request: Request) {
   ) as SizeId;
 
   const tone = pick(params.get("tone"), TONES, DEFAULT_TONE) as Tone;
+  const custom = params.get("line");
+  const lineIndex = Number.parseInt(params.get("li") ?? "0", 10);
+  const line = custom
+    ? { custom: sanitiseLine(custom) }
+    : { index: Number.isFinite(lineIndex) ? lineIndex : 0 };
   const toggles = readToggles(params);
   const quoteOverride = params.has("quote") ? params.get("quote") || null : undefined;
 
@@ -47,7 +52,7 @@ export async function GET(request: Request) {
     quoteOverride,
   });
 
-  return renderCardImage(buildSpec(kind, stats, toggles, tone), theme, size, {
+  return renderCardImage(buildSpec(kind, stats, toggles, tone, line), theme, size, {
     scale: clampScale(params.get("scale")),
     cache: "private",
   });
@@ -72,6 +77,11 @@ function readToggles(params: URLSearchParams): ShareToggles {
     out[key] = on.has(key);
   }
   return out;
+}
+
+/** User-written lines are their own words, but never newlines or an essay. */
+function sanitiseLine(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim().slice(0, 120);
 }
 
 function clampScale(raw: string | null): number {

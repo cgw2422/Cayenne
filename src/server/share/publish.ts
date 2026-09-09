@@ -15,6 +15,7 @@ export async function publishCard(input: {
   theme: ThemeId;
   size: SizeId;
   tone: Tone;
+  line: { index: number } | { custom: string };
   stats: CardStats;
   toggles: ShareToggles;
 }) {
@@ -26,6 +27,8 @@ export async function publishCard(input: {
       theme: input.theme,
       size: input.size,
       tone: input.tone,
+      lineIndex: "index" in input.line ? input.line.index : null,
+      customLine: "custom" in input.line ? input.line.custom : null,
       ...cardColumnsFrom(input.stats, input.toggles),
     },
   });

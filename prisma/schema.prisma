@@ -48,6 +48,7 @@ model User {
   pushSubs      PushSubscription[]
   shareCards    ShareCard[]
   shareEvents   ShareEvent[]
+  savedLines    SavedLine[]
 }
 
 /// Present from day one so Google/Apple sign-in is a row, not a migration.
@@ -500,6 +501,10 @@ model ShareCard {
   size   ShareSize
   tone   ShareTone  @default(FUNNY)
 
+  /// Which line the card was published with. `customLine` wins when set.
+  lineIndex  Int?
+  customLine String? @db.VarChar(120)
+
   streak         Int
   longestStreak  Int
   totalDays      Int
@@ -542,6 +547,20 @@ model ShareCard {
   @@index([userId, createdAt])
 }
 
+/// A line the user wrote themselves, kept so they can reuse a favourite.
+model SavedLine {
+  id        String   @id @default(cuid())
+  userId    String
+  text      String   @db.VarChar(120)
+  usedAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, text])
+  @@index([userId, usedAt])
+}
+
 enum ShareEventType {
   STUDIO_OPENED
   TYPE_SELECTED
@@ -549,7 +568,9 @@ enum ShareEventType {
   IMAGE_GENERATED
   IMAGE_SAVED
   NATIVE_SHARE_CLICKED
+  FACEBOOK_SHARE_CLICKED
   CAPTION_COPIED
+  WORDING_CHANGED
 }
 
 /// Which templates and moments actually drive sharing.

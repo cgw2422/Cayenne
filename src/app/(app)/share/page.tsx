@@ -6,7 +6,14 @@ import { requireUser } from "@/server/auth";
 import { buildCardStats } from "@/server/share/stats";
 import { defaultThemeFor } from "@/lib/share/themes";
 import { SHARE_KINDS, type ShareKind } from "@/lib/share/types";
-import { publishShareCard, quoteChoices, trackShareEvent } from "./actions";
+import {
+  forgetLine,
+  lineOptions,
+  publishShareCard,
+  quoteChoices,
+  saveLine,
+  trackShareEvent,
+} from "./actions";
 
 export const metadata = { title: "Share Studio" };
 export const dynamic = "force-dynamic";
@@ -66,6 +73,9 @@ export default async function SharePage({
         }}
         onPublish={publishShareCard}
         onTrack={trackShareEvent}
+        onLineOptions={lineOptions}
+        onSaveLine={saveLine}
+        onForgetLine={forgetLine}
       />
     </>
   );

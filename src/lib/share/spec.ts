@@ -1,5 +1,6 @@
 import type { IconName } from "@/lib/share/icons";
-import { voiceFor, type Tone } from "@/lib/share/voice";
+import { lineAt } from "@/lib/share/lines";
+import type { Tone } from "@/lib/share/voice";
 import type { CardSpec, CardStats, ShareKind, ShareToggles } from "@/lib/share/types";
 
 /**
@@ -19,10 +20,13 @@ export function buildSpec(
   stats: CardStats,
   toggles: ShareToggles,
   tone: Tone,
+  /** Which line from the matched pool, or the user's own words. */
+  line: { index: number } | { custom: string } = { index: 0 },
 ): CardSpec {
   const chip = (icon: IconName, label: string, value: string) => ({ icon, label, value });
   const quote = toggles.quote && stats.quote ? stats.quote : null;
-  const voice = voiceFor(kind, stats.streak, tone);
+  const voice =
+    "custom" in line ? line.custom : lineAt(kind, tone, stats, line.index);
 
   const base = {
     kind,
@@ -44,10 +48,10 @@ export function buildSpec(
     case "HOT_STREAK":
       return {
         ...base,
-        heroValue: `${stats.streak}`,
-        heroUnit: stats.streak === 1 ? "DAY HOT STREAK" : "DAY HOT STREAK",
+        heroValue: `${stats.currentStreak}`,
+        heroUnit: stats.currentStreak === 1 ? "DAY HOT STREAK" : "DAY HOT STREAK",
         stats: toggles.totalDays
-          ? [chip("pepper", "Days logged", `${stats.totalDays}`)]
+          ? [chip("pepper", "Days logged", `${stats.daysLogged}`)]
           : [],
       };
 
@@ -56,14 +60,14 @@ export function buildSpec(
       return {
         ...base,
         eyebrow: "MY CAYENNE JOURNEY",
-        heroValue: `${stats.daysSinceStart}`,
+        heroValue: `${stats.elapsedDays}`,
         heroUnit: "DAYS IN",
         rail:
           toggles.startDate && stats.startedOn
             ? { from: shortDate(stats.startedOn), to: shortDate(stats.todayLabel) }
             : null,
         stats: toggles.totalDays
-          ? [chip("pepper", "Days logged", `${stats.totalDays}`)]
+          ? [chip("pepper", "Days logged", `${stats.daysLogged}`)]
           : [],
       };
 
@@ -81,8 +85,8 @@ export function buildSpec(
 
     // The ring dominates; the number lives inside it.
     case "CHALLENGE": {
-      const day = stats.challengeDay ?? 0;
-      const total = stats.challengeTotal ?? 30;
+      const day = stats.challengeDaysLogged ?? 0;
+      const total = stats.challengeDurationDays ?? 30;
       return {
         ...base,
         eyebrow: (stats.challengeTitle ?? "Cayenne Challenge").toUpperCase(),
@@ -102,16 +106,16 @@ export function buildSpec(
         rows.push(chip("flame", "Longest streak", `${stats.longestStreak}`));
       }
       if (toggles.consistency) {
-        rows.push(chip("trend", "Consistency", `${stats.consistency}%`));
+        rows.push(chip("trend", "Consistency", `${stats.consistencyPct}%`));
       }
       if (!rows.length && toggles.streak) {
-        rows.push(chip("flame", "Current streak", `${stats.streak}`));
+        rows.push(chip("flame", "Current streak", `${stats.currentStreak}`));
       }
       return {
         ...base,
         eyebrow: "MY PROGRESS",
-        heroValue: `${stats.totalDays}`,
-        heroUnit: stats.totalDays === 1 ? "DAY LOGGED" : "DAYS LOGGED",
+        heroValue: `${stats.daysLogged}`,
+        heroUnit: stats.daysLogged === 1 ? "DAY LOGGED" : "DAYS LOGGED",
         stats: rows.slice(0, 2),
       };
     }

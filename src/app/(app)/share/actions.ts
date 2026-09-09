@@ -6,6 +6,7 @@ import { buildCardStats } from "@/server/share/stats";
 import { imageUrl, publishCard, shareUrl } from "@/server/share/publish";
 import { captionsFor, type CaptionStyle } from "@/lib/share/captions";
 import { DEFAULT_TONE, TONES, type Tone } from "@/lib/share/voice";
+import { linesFor } from "@/lib/share/lines";
 import {
   DEFAULT_TOGGLES,
   SHARE_KINDS,
@@ -25,6 +26,10 @@ export type PublishInput = {
   toggles: Partial<ShareToggles>;
   /** The card's personality. Changes the headline, never the numbers. */
   tone?: string;
+  /** Which line from the matched pool. */
+  lineIndex?: number;
+  /** The user's own words, if they wrote their own. */
+  customLine?: string | null;
   /** undefined keeps today's quote, null removes it, a string overrides it. */
   quote?: string | null;
   achievementId?: string | null;
@@ -67,7 +72,20 @@ export async function publishShareCard(input: PublishInput): Promise<PublishResu
     quoteOverride: input.quote,
   });
 
-  const card = await publishCard({ userId: user.id, kind, theme, size, tone, stats, toggles });
+  const line = input.customLine
+    ? { custom: input.customLine.replace(/\s+/g, " ").trim().slice(0, 120) }
+    : { index: Number.isFinite(input.lineIndex) ? Number(input.lineIndex) : 0 };
+
+  const card = await publishCard({
+    userId: user.id,
+    kind,
+    theme,
+    size,
+    tone,
+    line,
+    stats,
+    toggles,
+  });
 
   await record(user.id, "IMAGE_GENERATED", { kind, theme, size });
 
@@ -100,7 +118,9 @@ export async function trackShareEvent(input: {
     "IMAGE_GENERATED",
     "IMAGE_SAVED",
     "NATIVE_SHARE_CLICKED",
+    "FACEBOOK_SHARE_CLICKED",
     "CAPTION_COPIED",
+    "WORDING_CHANGED",
   ];
   if (!allowed.includes(input.event as ShareEventType)) return { ok: false };
 
@@ -142,6 +162,54 @@ async function record(
       },
     })
     .catch(() => undefined);
+}
+
+/** The lines this user can cycle through, plus anything they've written before. */
+export async function lineOptions(input: {
+  kind: string;
+  tone: string;
+  achievementId?: string | null;
+}): Promise<{ suggested: string[]; saved: string[] }> {
+  const user = await requireUser();
+
+  const kind = (SHARE_KINDS as readonly string[]).includes(input.kind)
+    ? (input.kind as ShareKind)
+    : "HOT_STREAK";
+  const tone = (TONES as readonly string[]).includes(input.tone)
+    ? (input.tone as Tone)
+    : DEFAULT_TONE;
+
+  const [stats, saved] = await Promise.all([
+    buildCardStats(user, { achievementId: input.achievementId ?? undefined }),
+    prisma.savedLine.findMany({
+      where: { userId: user.id },
+      orderBy: { usedAt: "desc" },
+      take: 12,
+      select: { text: true },
+    }),
+  ]);
+
+  return { suggested: linesFor(kind, tone, stats), saved: saved.map((l) => l.text) };
+}
+
+/** Keeps a line the user wrote, so a favourite can be reused. */
+export async function saveLine(text: string): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  const clean = text.replace(/\s+/g, " ").trim().slice(0, 120);
+  if (clean.length < 2) return { ok: false };
+
+  await prisma.savedLine.upsert({
+    where: { userId_text: { userId: user.id, text: clean } },
+    create: { userId: user.id, text: clean },
+    update: { usedAt: new Date() },
+  });
+  return { ok: true };
+}
+
+export async function forgetLine(text: string): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  await prisma.savedLine.deleteMany({ where: { userId: user.id, text } });
+  return { ok: true };
 }
 
 /** Quotes the user can pick from, for the "choose another quote" option. */

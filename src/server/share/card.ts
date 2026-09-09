@@ -10,11 +10,11 @@ import type { CardStats, ShareToggles } from "@/lib/share/types";
 export function statsFromCard(card: ShareCard): CardStats {
   return {
     displayName: "",
-    streak: card.streak,
+    currentStreak: card.streak,
     longestStreak: card.longestStreak,
-    totalDays: card.totalDays,
-    consistency: card.consistency,
-    daysSinceStart: card.daysSinceStart,
+    daysLogged: card.totalDays,
+    consistencyPct: card.consistency,
+    elapsedDays: card.daysSinceStart,
     startedOn: card.startedOnLabel,
     todayLabel: card.todayLabel ?? "",
     amountLabel: card.amountLabel,
@@ -24,8 +24,8 @@ export function statsFromCard(card: ShareCard): CardStats {
     achievementDescription: card.achievementBlurb,
     achievementValue: card.achievementValue,
     challengeTitle: card.challengeTitle,
-    challengeDay: card.challengeDay,
-    challengeTotal: card.challengeTotal,
+    challengeDaysLogged: card.challengeDay,
+    challengeDurationDays: card.challengeTotal,
     monthLabel: card.monthLabel,
     monthDaysLogged: card.monthDaysLogged,
     monthDaysTotal: card.monthDaysTotal,
@@ -50,17 +50,20 @@ export function togglesFromCard(card: ShareCard): ShareToggles {
 }
 
 export function specFromCard(card: ShareCard) {
-  return buildSpec(card.kind, statsFromCard(card), togglesFromCard(card), card.tone);
+  const line = card.customLine
+    ? { custom: card.customLine }
+    : { index: card.lineIndex ?? 0 };
+  return buildSpec(card.kind, statsFromCard(card), togglesFromCard(card), card.tone, line);
 }
 
 /** Maps stats + toggles onto the snapshot columns a card stores. */
 export function cardColumnsFrom(stats: CardStats, toggles: ShareToggles) {
   return {
-    streak: stats.streak,
+    streak: stats.currentStreak,
     longestStreak: stats.longestStreak,
-    totalDays: stats.totalDays,
-    consistency: stats.consistency,
-    daysSinceStart: stats.daysSinceStart,
+    totalDays: stats.daysLogged,
+    consistency: stats.consistencyPct,
+    daysSinceStart: stats.elapsedDays,
     startedOnLabel: stats.startedOn,
     todayLabel: stats.todayLabel,
     amountLabel: stats.amountLabel,
@@ -70,8 +73,8 @@ export function cardColumnsFrom(stats: CardStats, toggles: ShareToggles) {
     achievementBlurb: stats.achievementDescription,
     achievementValue: stats.achievementValue,
     challengeTitle: stats.challengeTitle,
-    challengeDay: stats.challengeDay,
-    challengeTotal: stats.challengeTotal,
+    challengeDay: stats.challengeDaysLogged,
+    challengeTotal: stats.challengeDurationDays,
     monthLabel: stats.monthLabel,
     monthDaysLogged: stats.monthDaysLogged,
     monthDaysTotal: stats.monthDaysTotal,

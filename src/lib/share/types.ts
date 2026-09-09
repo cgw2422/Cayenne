@@ -118,13 +118,27 @@ export const KIND_TOGGLES: Record<ShareKind, (keyof ShareToggles)[]> = {
  * The verified, server-derived numbers a card can draw from. Built only from the
  * user's own habit data — never from anything the client sends.
  */
+/**
+ * The verified numbers a card may display.
+ *
+ * These five are constantly confused, so each is named for exactly what it
+ * counts and never abbreviated back to "days":
+ *   currentStreak  consecutive days up to today
+ *   longestStreak  the best run ever, which may be over
+ *   daysLogged     distinct days with at least one entry, ever
+ *   elapsedDays    calendar days since the user started, logged or not
+ *   challengeDaysLogged  days logged since the current challenge began
+ *
+ * `elapsedDays >= daysLogged >= longestStreak >= currentStreak` always holds,
+ * and a test asserts it against fixtures where every value differs.
+ */
 export type CardStats = {
   displayName: string;
-  streak: number;
+  currentStreak: number;
   longestStreak: number;
-  totalDays: number;
-  consistency: number;
-  daysSinceStart: number;
+  daysLogged: number;
+  consistencyPct: number;
+  elapsedDays: number;
   startedOn: string | null;
   todayLabel: string;
   amountLabel: string | null;
@@ -134,8 +148,8 @@ export type CardStats = {
   achievementDescription: string | null;
   achievementValue: number | null;
   challengeTitle: string | null;
-  challengeDay: number | null;
-  challengeTotal: number | null;
+  challengeDaysLogged: number | null;
+  challengeDurationDays: number | null;
   monthLabel: string | null;
   monthDaysLogged: number | null;
   monthDaysTotal: number | null;

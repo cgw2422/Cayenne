@@ -19,8 +19,8 @@ export function captionsFor(
   kind: ShareKind,
   stats: CardStats,
 ): Record<CaptionStyle, string> {
-  const streak = stats.streak;
-  const total = stats.totalDays;
+  const streak = stats.currentStreak;
+  const total = stats.daysLogged;
   const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 
   const byKind: Partial<Record<ShareKind, Record<CaptionStyle, string>>> = {
@@ -31,10 +31,10 @@ export function captionsFor(
       SHORT: `${days(streak)} straight 🔥`,
     },
     JOURNEY: {
-      CASUAL: `Been tracking my cayenne routine for a while now. ${stats.daysSinceStart} days in 🌶️`,
-      MOTIVATIONAL: `${stats.daysSinceStart} days since I started. ${total} of them logged. Still going 🔥`,
-      FUNNY: `${stats.daysSinceStart} days of putting cayenne in things. This is who I am now 🌶️😂`,
-      SHORT: `${stats.daysSinceStart} days in 🌶️`,
+      CASUAL: `Been tracking my cayenne routine for a while now. ${stats.elapsedDays} days in 🌶️`,
+      MOTIVATIONAL: `${stats.elapsedDays} days since I started. ${total} of them logged. Still going 🔥`,
+      FUNNY: `${stats.elapsedDays} days of putting cayenne in things. This is who I am now 🌶️😂`,
+      SHORT: `${stats.elapsedDays} days in 🌶️`,
     },
     ACHIEVEMENT: {
       CASUAL: `Unlocked "${stats.achievementTitle ?? "a new badge"}" today 🏆 Small win but I'll take it`,
@@ -43,10 +43,10 @@ export function captionsFor(
       SHORT: `${stats.achievementTitle ?? "Badge unlocked"} 🏆`,
     },
     CHALLENGE: {
-      CASUAL: `Day ${stats.challengeDay ?? 0} of the ${stats.challengeTitle ?? "challenge"} 🌶️ Going better than I expected`,
-      MOTIVATIONAL: `Day ${stats.challengeDay ?? 0} of ${stats.challengeTotal ?? 30}. Not stopping now 🔥`,
-      FUNNY: `Signed up for a ${stats.challengeTotal ?? 30}-day challenge. Past the point where I can quietly quit 😂`,
-      SHORT: `Day ${stats.challengeDay ?? 0}/${stats.challengeTotal ?? 30} 🔥`,
+      CASUAL: `Day ${stats.challengeDaysLogged ?? 0} of the ${stats.challengeTitle ?? "challenge"} 🌶️ Going better than I expected`,
+      MOTIVATIONAL: `Day ${stats.challengeDaysLogged ?? 0} of ${stats.challengeDurationDays ?? 30}. Not stopping now 🔥`,
+      FUNNY: `Signed up for a ${stats.challengeDurationDays ?? 30}-day challenge. Past the point where I can quietly quit 😂`,
+      SHORT: `Day ${stats.challengeDaysLogged ?? 0}/${stats.challengeDurationDays ?? 30} 🔥`,
     },
     PROGRESS: {
       CASUAL: `${total} days logged so far 🌶️ Kind of surprised at how it's stacked up`,

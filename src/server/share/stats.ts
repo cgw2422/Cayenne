@@ -73,14 +73,14 @@ export async function buildCardStats(
       }),
     ]);
 
-  let challengeDay: number | null = null;
+  let challengeDaysLogged: number | null = null;
   if (challenge) {
     const logged = await prisma.cayenneEntry.findMany({
       where: { userId: user.id, takenOn: { gte: challenge.startedOn } },
       distinct: ["takenOn"],
       select: { takenOn: true },
     });
-    challengeDay = Math.min(logged.length, challenge.challenge.durationDays);
+    challengeDaysLogged = Math.min(logged.length, challenge.challenge.durationDays);
   }
 
   const monthLabel = new Intl.DateTimeFormat("en-US", {
@@ -90,11 +90,11 @@ export async function buildCardStats(
 
   return {
     displayName: user.displayName,
-    streak: summary.current,
+    currentStreak: summary.current,
     longestStreak: summary.longest,
-    totalDays: summary.totalDays,
-    consistency: summary.consistency,
-    daysSinceStart: Math.max(1, diffDays(startedOn, today) + 1),
+    daysLogged: summary.totalDays,
+    consistencyPct: summary.consistency,
+    elapsedDays: Math.max(1, diffDays(startedOn, today) + 1),
     startedOn: formatDayLong(startedOn),
     todayLabel: formatDayLong(today),
     amountLabel: common.amountLabel,
@@ -104,8 +104,8 @@ export async function buildCardStats(
     achievementDescription: achievement?.achievement.description ?? null,
     achievementValue: achievement?.achievement.threshold ?? null,
     challengeTitle: challenge?.challenge.title ?? null,
-    challengeDay,
-    challengeTotal: challenge?.challenge.durationDays ?? null,
+    challengeDaysLogged,
+    challengeDurationDays: challenge?.challenge.durationDays ?? null,
     monthLabel,
     monthDaysLogged: monthDays.length,
     monthDaysTotal: monthTotal,
