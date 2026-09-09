@@ -149,9 +149,9 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Tuned for a Facebook feed: deep green, high contrast, "Tracked with" line.
   SOCIAL: {
     id: "SOCIAL",
-    background: "linear-gradient(162deg,#1D5340 0%,#12372A 52%,#0B211A 100%)",
-    wash:
-      "linear-gradient(180deg, rgba(241,90,36,0.26) 0%, rgba(241,90,36,0) 62%)",
+    background: "linear-gradient(168deg,#22664E 0%,#14402F 46%,#08190F 100%)",
+    // No warm wash here: orange over deep green renders khaki, not heat.
+    wash: null,
     ink: "#FFF7E8",
     inkSoft: "rgba(255,247,232,0.60)",
     accent: "#FF8A4C",

@@ -76,7 +76,7 @@ export function renderCard(
           color: theme.inkSoft,
         }}
       >
-        <Icon name="pepper" size={26 * u} color={theme.inkSoft} accent={theme.accent} />
+        <Icon name="pepper" size={30 * u} color={theme.inkSoft} accent={theme.accent} />
         CAYENNE DO IT
       </div>
 
@@ -428,14 +428,14 @@ function Footer({
             display: "flex",
             alignItems: "center",
             gap: 10 * u,
-            fontSize: 40 * u,
+            fontSize: 48 * u,
             fontWeight: 900,
             color: theme.ink,
             letterSpacing: -0.5 * u,
           }}
         >
           Cayenne Do It
-          <Icon name="pepper" size={34 * u} color={theme.ink} accent={theme.accent} />
+          <Icon name="pepper" size={40 * u} color={theme.ink} accent={theme.accent} />
         </div>
         {theme.showDomain ? (
           <div
@@ -477,7 +477,7 @@ function Footer({
       <div
         style={{
           display: "flex",
-          fontSize: 46 * u,
+          fontSize: 54 * u,
           fontWeight: 900,
           color: theme.ink,
           letterSpacing: -1 * u,

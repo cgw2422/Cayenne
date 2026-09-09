@@ -58,16 +58,22 @@ export function Icon({
       );
 
     case "pepper":
+      // The cap is deliberately a fixed green rather than the caller's ink: a
+      // grey stem makes the body read as an anonymous blob at small sizes.
       return (
         <svg {...common}>
           <path
-            d="M12 4.4c3.4 0 6 2.6 6.2 6 .2 4.2-1.2 7.6-3.2 10-1 1.2-2 1.8-3 1.8s-2-.6-3-1.8c-2-2.4-3.4-5.8-3.2-10 .2-3.4 2.8-6 6.2-6Z"
+            d="M12 23c-2.4 0-4.3-2.3-5.1-5.8C5.9 13 7.9 8.4 12 8.4s6.1 4.6 5.1 8.8C16.3 20.7 14.4 23 12 23Z"
             fill={a}
           />
           <path
-            d="M12 4.8c-.4-1.6.2-3 1.4-3.8.4-.2.8.2.6.6-.6 1-.8 2-.6 2.8"
-            stroke={color}
-            strokeWidth="1.6"
+            d="M8.6 8.8c2-1.6 4.8-1.6 6.8 0-2 1-4.8 1-6.8 0Z"
+            fill="#3C9A6A"
+          />
+          <path
+            d="M12 8.4c-.4-2.6.6-4.6 2.8-5.8.6-.3 1.2.4.8 1-.9 1.4-1.2 2.7-1 3.9"
+            stroke="#3C9A6A"
+            strokeWidth="1.8"
             strokeLinecap="round"
             fill="none"
           />
