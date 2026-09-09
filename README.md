@@ -95,6 +95,14 @@ reachable from the renderer, so there is no setting or bug that can put them on 
 card. Cards render as PNGs via `next/og` at both 1080×1080 (feed post) and
 1200×630 (link preview), with the public `/s/[token]` page carrying the OG tags.
 
+**Doses are a target, not a rule.** A user says how many times a day they take
+cayenne (up to six) and gets a reminder for each, stored as `ReminderTime` rows
+rather than a single column. The dashboard tracks progress against that target —
+"2 of 3 today" — but the streak still counts any day with at least one entry.
+Missing a dose costs you nothing; the spec is explicit about not punishing people
+for an imperfect day, and a target you can fail three ways a day would do exactly
+that.
+
 **The quote engine remembers.** One quote per user per day is recorded in
 `QuoteImpression`, and selection avoids the last 45 days before falling back to
 the full pool — so refreshing the dashboard doesn't reshuffle the copy and the
@@ -117,7 +125,8 @@ blobs:
 - **Motivation** — `Quote`, `QuoteImpression`, `Achievement`,
   `UserAchievement`, `Challenge`, `UserChallenge`
 - **Content** — `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeFavorite`
-- **Plumbing** — `NotificationPreference`, `PushSubscription`, `ShareCard`
+- **Plumbing** — `NotificationPreference`, `ReminderTime`, `PushSubscription`,
+  `ShareCard`
 
 Everything cascades from `User`, so account deletion is a single statement.
 

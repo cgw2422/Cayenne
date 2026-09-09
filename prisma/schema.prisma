@@ -2,7 +2,7 @@
 // Every domain concept gets real columns, relations and indexes; no JSON blobs.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // "native" covers local development; the Debian target keeps the client
   // working on container hosts such as Railway, Render and Fly.
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -44,6 +44,7 @@ model User {
   favorites     RecipeFavorite[]
   impressions   QuoteImpression[]
   notifications NotificationPreference?
+  reminders     ReminderTime[]
   pushSubs      PushSubscription[]
   shareCards    ShareCard[]
 }
@@ -105,6 +106,8 @@ model Profile {
   defaultMethod Method?
   defaultAmount Decimal?   @db.Decimal(8, 3)
   defaultUnit   Unit       @default(TSP)
+  /// How many times a day the user intends to take cayenne.
+  dosesPerDay   Int        @default(1)
   startedOn     DateTime   @db.Date
   timezone      String     @default("UTC")
 
@@ -411,13 +414,27 @@ model NotificationPreference {
   id             String   @id @default(cuid())
   userId         String   @unique
   dailyReminder  Boolean  @default(false)
-  /// Minutes past local midnight, so it survives timezone changes cleanly.
-  reminderMinute Int      @default(480)
   streakWarning  Boolean  @default(true)
   milestoneAlert Boolean  @default(true)
   updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// One row per daily reminder. A user taking cayenne three times a day gets
+/// three rows, each with its own time and label.
+model ReminderTime {
+  id      String  @id @default(cuid())
+  userId  String
+  /// Minutes past local midnight, so a timezone change doesn't shift the time.
+  minute  Int
+  label   String?
+  enabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, minute])
+  @@index([userId])
 }
 
 model PushSubscription {

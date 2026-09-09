@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
 import { onboardingSchema, type ActionState } from "@/lib/validation";
 import { dateColumnFromDayKey, todayInZone } from "@/lib/date";
+import { sortSchedule } from "@/lib/doses";
 
 export async function completeOnboarding(payload: {
   goalSlugs: string[];
@@ -13,17 +14,22 @@ export async function completeOnboarding(payload: {
   amount: number | null;
   unit: string;
   reminderEnabled: boolean;
-  reminderMinute: number;
+  doses: { minute: number; enabled: boolean }[];
   timezone: string;
 }): Promise<ActionState> {
   const user = await requireUser();
 
   const parsed = onboardingSchema.safeParse(payload);
   if (!parsed.success) {
-    return { ok: false, message: "Something in that form didn't look right." };
+    return {
+      ok: false,
+      message:
+        parsed.error.issues[0]?.message ?? "Something in that form didn't look right.",
+    };
   }
 
   const data = parsed.data;
+  const schedule = sortSchedule(data.doses);
   const goals = await prisma.goal.findMany({
     where: { slug: { in: data.goalSlugs } },
     select: { id: true },
@@ -43,21 +49,24 @@ export async function completeOnboarding(payload: {
         defaultMethod: data.method as never,
         defaultAmount: data.amount,
         defaultUnit: data.unit as never,
+        dosesPerDay: schedule.length,
         timezone: data.timezone || "UTC",
         startedOn: dateColumnFromDayKey(today),
       },
     }),
+    prisma.reminderTime.deleteMany({ where: { userId: user.id } }),
+    prisma.reminderTime.createMany({
+      data: schedule.map((dose, i) => ({
+        userId: user.id,
+        minute: dose.minute,
+        label: schedule.length > 1 ? `Dose ${i + 1}` : null,
+        enabled: data.reminderEnabled && dose.enabled,
+      })),
+    }),
     prisma.notificationPreference.upsert({
       where: { userId: user.id },
-      create: {
-        userId: user.id,
-        dailyReminder: data.reminderEnabled,
-        reminderMinute: data.reminderMinute,
-      },
-      update: {
-        dailyReminder: data.reminderEnabled,
-        reminderMinute: data.reminderMinute,
-      },
+      create: { userId: user.id, dailyReminder: data.reminderEnabled },
+      update: { dailyReminder: data.reminderEnabled },
     }),
     prisma.user.update({
       where: { id: user.id },

@@ -5,8 +5,9 @@ import { useMemo, useState, useTransition } from "react";
 import { Button, cx } from "@/components/ui/primitives";
 import { Mascot } from "@/components/ui/Mascot";
 import { Flame } from "@/components/ui/Flame";
+import { DoseScheduler } from "@/components/DoseScheduler";
 import { AMOUNT_PRESETS, BRAND, METHOD_META } from "@/lib/brand";
-import { formatReminderTime, minutesToTimeInput, timeInputToMinutes } from "@/lib/date";
+import { defaultSchedule, describeSchedule, type Dose } from "@/lib/doses";
 import type { ActionState } from "@/lib/validation";
 
 type Goal = { id: string; slug: string; label: string; icon: string };
@@ -33,7 +34,7 @@ export function Onboarding({
     amount: number | null;
     unit: string;
     reminderEnabled: boolean;
-    reminderMinute: number;
+    doses: Dose[];
     timezone: string;
   }) => Promise<ActionState>;
 }) {
@@ -45,7 +46,9 @@ export function Onboarding({
   const [unit, setUnit] = useState("TSP");
   const [customAmount, setCustomAmount] = useState("");
   const [reminderEnabled, setReminderEnabled] = useState(true);
-  const [reminderMinute, setReminderMinute] = useState(480);
+  const [doses, setDoses] = useState<Dose[]>(
+    defaultSchedule(1).map((minute) => ({ minute, enabled: true })),
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -73,7 +76,7 @@ export function Onboarding({
         amount,
         unit,
         reminderEnabled,
-        reminderMinute,
+        doses,
         timezone,
       });
       if (result && !result.ok) setError(result.message ?? "Something went wrong.");
@@ -264,36 +267,23 @@ export function Onboarding({
         {step === 4 && (
           <>
             <StepHeading
-              title="What time should we give you a little kick?"
-              body="One gentle nudge a day. You can turn this off now or later — we won't nag."
+              title="How often, and when?"
+              body="Tell us how many times a day you take cayenne and we'll nudge you for each one."
             />
             <div className="card p-5">
-              <label className="flex items-center justify-between gap-4">
-                <span className="font-extrabold text-charcoal-900">Daily reminder</span>
-                <Toggle on={reminderEnabled} onChange={setReminderEnabled} label="Daily reminder" />
-              </label>
-
-              {reminderEnabled ? (
-                <div className="mt-5 border-t border-cream-200 pt-5">
-                  <label
-                    htmlFor="reminder-time"
-                    className="mb-2 block text-sm font-extrabold text-charcoal-700"
-                  >
-                    Remind me at
-                  </label>
-                  <input
-                    id="reminder-time"
-                    type="time"
-                    value={minutesToTimeInput(reminderMinute)}
-                    onChange={(e) => setReminderMinute(timeInputToMinutes(e.target.value))}
-                    className="h-13 w-full rounded-xl border border-cream-300 px-4 text-lg font-bold outline-none focus:border-ember-400"
-                  />
-                  <p className="mt-2 text-sm text-charcoal-500">
-                    We&apos;ll check in around {formatReminderTime(reminderMinute)}.
-                  </p>
-                </div>
-              ) : null}
+              <DoseScheduler
+                doses={doses}
+                onChange={setDoses}
+                remindersOn={reminderEnabled}
+                onRemindersChange={setReminderEnabled}
+                compact
+              />
             </div>
+            {reminderEnabled ? (
+              <p className="mt-3 text-center text-sm text-charcoal-500">
+                {describeSchedule(doses)}
+              </p>
+            ) : null}
           </>
         )}
 

@@ -29,13 +29,28 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Enter your password."),
 });
 
+/** A single reminder: minutes past local midnight, plus its own on/off switch. */
+export const doseSchema = z.object({
+  minute: z.number().int().min(0).max(1439),
+  enabled: z.boolean(),
+});
+
+/** Times must be distinct — the database has a unique index on (user, minute). */
+export const doseListSchema = z
+  .array(doseSchema)
+  .min(1, "Set at least one time.")
+  .max(6, "Six a day is the most we'll track.")
+  .refine((doses) => new Set(doses.map((d) => d.minute)).size === doses.length, {
+    message: "Two reminders are set to the same time.",
+  });
+
 export const onboardingSchema = z.object({
   goalSlugs: z.array(z.string()).min(1, "Pick at least one, or choose Other."),
   method: z.enum(["WATER", "TEA", "FOOD", "SHOT", "CAPSULE", "OTHER"]).nullable(),
   amount: z.coerce.number().positive().max(10000).nullable(),
   unit: z.enum(["TSP", "MG", "G", "CAPSULE"]),
   reminderEnabled: z.boolean(),
-  reminderMinute: z.number().int().min(0).max(1439),
+  doses: doseListSchema,
   timezone: z.string().max(80),
 });
 

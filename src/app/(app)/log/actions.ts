@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
 import { entrySchema, fieldErrors, type ActionState } from "@/lib/validation";
 import { dateColumnFromDayKey, toDayKey, todayInZone } from "@/lib/date";
-import { evaluateAchievements, refreshStreakCache } from "@/server/habit";
+import { dosesToday, evaluateAchievements, refreshStreakCache } from "@/server/habit";
 import { milestoneReached, MILESTONE_TITLES } from "@/lib/streak";
 import { categoriesForState, randomQuote } from "@/server/quotes";
 
@@ -116,19 +116,36 @@ export async function saveEntry(input: {
   const streak = summary?.current ?? 0;
   const milestone = milestoneReached(streak);
   const quote = await randomQuote(categoriesForState(streak, false));
+  const doses = await dosesToday(user);
+
+  // A milestone always wins. Otherwise, someone on a multi-dose routine wants to
+  // know where they are in the day, not just that the day counted.
+  let headline: string;
+  let subline: string;
+
+  if (milestone) {
+    headline = `${milestone} days — ${MILESTONE_TITLES[milestone]}!`;
+    subline = "That's a milestone worth posting.";
+  } else if (doses.target > 1 && !doses.complete) {
+    headline = `Dose ${doses.logged} of ${doses.target}`;
+    subline = `${doses.remaining} more to go today.`;
+  } else if (doses.target > 1) {
+    headline = `All ${doses.target} doses done!`;
+    subline = quote?.text ?? "That's the day, handled.";
+  } else if (streak > 0) {
+    headline = `Day ${streak}!`;
+    subline = quote?.text ?? "Another day in the books.";
+  } else {
+    headline = "Logged.";
+    subline = quote?.text ?? "Another day in the books.";
+  }
 
   return {
     ok: true,
     streak,
     milestone,
-    headline: milestone
-      ? `${milestone} days — ${MILESTONE_TITLES[milestone]}!`
-      : streak > 0
-        ? `Day ${streak}!`
-        : "Logged.",
-    subline: milestone
-      ? "That's a milestone worth posting."
-      : (quote?.text ?? "Another day in the books."),
+    headline,
+    subline,
     badges: badges.map((b) => ({ title: b.title, description: b.description })),
   };
 }

@@ -11,7 +11,7 @@ import { requireUser } from "@/server/auth";
 import { formatAmount, METHOD_META, STREAK_BROKEN_COPY } from "@/lib/brand";
 import { dayKeyFromDateColumn, diffDays } from "@/lib/date";
 import { MILESTONE_TITLES, type Milestone } from "@/lib/streak";
-import { streakFor, userToday } from "@/server/habit";
+import { dosesToday, streakFor, userToday } from "@/server/habit";
 import { categoriesForState, quoteOfTheDay } from "@/server/quotes";
 
 export const metadata = { title: "Home" };
@@ -34,7 +34,8 @@ export default async function HomePage({
     summary.lastLoggedOn !== null &&
     diffDays(summary.lastLoggedOn, today) > 1;
 
-  const [quote, activeChallenge, todaysEntries, unseen] = await Promise.all([
+  const [doses, quote, activeChallenge, todaysEntries, unseen] = await Promise.all([
+    dosesToday(user),
     quoteOfTheDay(user.id, today, categoriesForState(summary.current, brokeStreak)),
     prisma.userChallenge.findFirst({
       where: { userId: user.id, status: "ACTIVE" },
@@ -83,7 +84,7 @@ export default async function HomePage({
       <section className="px-5 pt-4">
         <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-b from-cream-50 to-cream-200/70 px-5 pb-6 pt-7 shadow-soft">
           <p className="text-center text-sm font-extrabold uppercase tracking-[0.2em] text-charcoal-500">
-            {summary.loggedToday ? "Today's done" : "Your streak"}
+            {doses.complete ? "Today's done" : "Your streak"}
           </p>
 
           <div className="mt-3">
@@ -91,6 +92,8 @@ export default async function HomePage({
               streak={summary.current}
               loggedToday={summary.loggedToday}
               nextMilestone={summary.nextMilestone}
+              dosesLogged={doses.logged}
+              dosesTarget={doses.target}
             />
           </div>
 
@@ -99,20 +102,26 @@ export default async function HomePage({
               ? brokeStreak
                 ? STREAK_BROKEN_COPY
                 : "Let's light this thing up."
-              : milestoneTitle
-                ? `${milestoneTitle}!`
-                : "Keep the fire going."}
+              : doses.target > 1 && !doses.complete
+                ? `${doses.remaining} more ${doses.remaining === 1 ? "dose" : "doses"} today.`
+                : milestoneTitle
+                  ? `${milestoneTitle}!`
+                  : "Keep the fire going."}
           </p>
 
           <div className="mt-5">
-            {summary.loggedToday ? (
+            {doses.complete ? (
               <ButtonLink href="/share" variant="secondary" size="lg" full>
                 Share your progress
               </ButtonLink>
             ) : (
               <ButtonLink href="/log" size="lg" full>
                 <Flame size={20} />
-                {summary.current > 0 ? "I Cayenne Today" : "Log today's cayenne"}
+                {doses.target > 1
+                  ? `Log dose ${doses.logged + 1} of ${doses.target}`
+                  : summary.current > 0
+                    ? "I Cayenne Today"
+                    : "Log today's cayenne"}
               </ButtonLink>
             )}
           </div>

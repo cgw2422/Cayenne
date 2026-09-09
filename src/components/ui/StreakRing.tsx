@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Flame } from "@/components/ui/Flame";
+import { cx } from "@/components/ui/primitives";
 import { MILESTONE_TITLES, ringProgress, type Milestone } from "@/lib/streak";
 
 const SIZE = 220;
@@ -18,10 +19,14 @@ export function StreakRing({
   streak,
   loggedToday,
   nextMilestone,
+  dosesLogged = 0,
+  dosesTarget = 1,
 }: {
   streak: number;
   loggedToday: boolean;
   nextMilestone: number | null;
+  dosesLogged?: number;
+  dosesTarget?: number;
 }) {
   const target = ringProgress(streak);
   const [progress, setProgress] = useState(0);
@@ -111,7 +116,19 @@ export function StreakRing({
         <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-charcoal-500">
           Day streak
         </span>
-        {loggedToday ? (
+        {dosesTarget > 1 ? (
+          <span
+            className={cx(
+              "mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider",
+              dosesLogged >= dosesTarget
+                ? "bg-pepper-900 text-cream-100"
+                : "bg-cream-300 text-charcoal-700",
+            )}
+          >
+            {dosesLogged >= dosesTarget ? "✓ " : ""}
+            {dosesLogged} of {dosesTarget} today
+          </span>
+        ) : loggedToday ? (
           <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-pepper-900 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cream-100">
             ✓ Logged today
           </span>

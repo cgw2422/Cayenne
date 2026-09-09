@@ -177,6 +177,16 @@ export async function markAchievementsSeen(userId: string, ids: string[]) {
   });
 }
 
+/** How many doses the user has logged today, against their chosen target. */
+export async function dosesToday(user: SessionUser) {
+  const today = userToday(user);
+  const logged = await prisma.cayenneEntry.count({
+    where: { userId: user.id, takenOn: dateColumnFromDayKey(today) },
+  });
+  const target = Math.max(1, user.profile?.dosesPerDay ?? 1);
+  return { logged, target, complete: logged >= target, remaining: Math.max(0, target - logged) };
+}
+
 export type EntryWithGoals = Prisma.CayenneEntryGetPayload<{
   include: { goals: { include: { userGoal: { include: { goal: true } } } } };
 }>;

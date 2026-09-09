@@ -9,9 +9,14 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const prefs = await prisma.notificationPreference.findUnique({
-    where: { userId: user.id },
-  });
+  const [prefs, reminders] = await Promise.all([
+    prisma.notificationPreference.findUnique({ where: { userId: user.id } }),
+    prisma.reminderTime.findMany({
+      where: { userId: user.id },
+      orderBy: { minute: "asc" },
+      select: { minute: true, enabled: true },
+    }),
+  ]);
 
   return (
     <>
@@ -28,7 +33,7 @@ export default async function SettingsPage() {
           unitSystem: user.profile?.unitSystem ?? "IMPERIAL",
           timezone: user.profile?.timezone ?? "UTC",
           dailyReminder: prefs?.dailyReminder ?? false,
-          reminderMinute: prefs?.reminderMinute ?? 480,
+          doses: reminders.length ? reminders : [{ minute: 480, enabled: true }],
           streakWarning: prefs?.streakWarning ?? true,
           milestoneAlert: prefs?.milestoneAlert ?? true,
         }}

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { destroySession, requireUser, verifyPassword } from "@/server/auth";
-import type { ActionState } from "@/lib/validation";
+import { sortSchedule } from "@/lib/doses";
+import { doseListSchema, type ActionState } from "@/lib/validation";
 
 export async function updateSettings(input: {
   displayName: string;
@@ -15,7 +16,7 @@ export async function updateSettings(input: {
   unitSystem: string;
   timezone: string;
   dailyReminder: boolean;
-  reminderMinute: number;
+  doses: { minute: number; enabled: boolean }[];
   streakWarning: boolean;
   milestoneAlert: boolean;
 }): Promise<ActionState> {
@@ -26,6 +27,16 @@ export async function updateSettings(input: {
     return { ok: false, errors: { displayName: "Your name can't be empty." } };
   }
 
+  const parsedDoses = doseListSchema.safeParse(input.doses);
+  if (!parsedDoses.success) {
+    return {
+      ok: false,
+      message: parsedDoses.error.issues[0]?.message ?? "Check your times.",
+    };
+  }
+  // Sorted so the "Dose 1 / 2 / 3" labels always follow the clock.
+  const schedule = sortSchedule(parsedDoses.data);
+
   await prisma.$transaction([
     prisma.user.update({ where: { id: user.id }, data: { displayName } }),
     prisma.profile.update({
@@ -35,21 +46,31 @@ export async function updateSettings(input: {
         defaultAmount: input.defaultAmount,
         defaultUnit: input.defaultUnit as never,
         unitSystem: input.unitSystem as never,
+        dosesPerDay: schedule.length,
         timezone: input.timezone || "UTC",
       },
+    }),
+    // Replace the whole schedule: simpler than diffing, and the unique index on
+    // (userId, minute) makes an in-place update awkward when times are swapped.
+    prisma.reminderTime.deleteMany({ where: { userId: user.id } }),
+    prisma.reminderTime.createMany({
+      data: schedule.map((dose, i) => ({
+        userId: user.id,
+        minute: dose.minute,
+        label: schedule.length > 1 ? `Dose ${i + 1}` : null,
+        enabled: dose.enabled,
+      })),
     }),
     prisma.notificationPreference.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
         dailyReminder: input.dailyReminder,
-        reminderMinute: input.reminderMinute,
         streakWarning: input.streakWarning,
         milestoneAlert: input.milestoneAlert,
       },
       update: {
         dailyReminder: input.dailyReminder,
-        reminderMinute: input.reminderMinute,
         streakWarning: input.streakWarning,
         milestoneAlert: input.milestoneAlert,
       },

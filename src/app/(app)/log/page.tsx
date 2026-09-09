@@ -4,6 +4,7 @@ import { LogForm } from "@/components/LogForm";
 import { Card, SectionTitle } from "@/components/ui/primitives";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
+import { dosesToday } from "@/server/habit";
 import { formatAmount, METHOD_META, MOOD_META } from "@/lib/brand";
 import { dateColumnFromDayKey, todayInZone } from "@/lib/date";
 import { saveEntry } from "./actions";
@@ -14,7 +15,8 @@ export default async function LogPage() {
   const user = await requireUser();
   const today = todayInZone(user.profile?.timezone ?? "UTC");
 
-  const [userGoals, todays] = await Promise.all([
+  const [doses, userGoals, todays] = await Promise.all([
+    dosesToday(user),
     prisma.userGoal.findMany({
       where: { userId: user.id },
       include: { goal: true },
@@ -44,7 +46,12 @@ export default async function LogPage() {
             />
           </svg>
         </Link>
-        <h1 className="text-xl font-extrabold text-charcoal-900">Log Cayenne</h1>
+        <h1 className="flex-1 text-xl font-extrabold text-charcoal-900">Log Cayenne</h1>
+        {doses.target > 1 ? (
+          <span className="rounded-full bg-cream-200 px-3 py-1.5 text-xs font-extrabold text-charcoal-700">
+            {doses.logged} of {doses.target} today
+          </span>
+        ) : null}
       </header>
 
       <LogForm
@@ -63,7 +70,11 @@ export default async function LogPage() {
 
       {todays.length ? (
         <section className="px-5 pb-6">
-          <SectionTitle>Already logged today</SectionTitle>
+          <SectionTitle>
+            {doses.target > 1
+              ? `Logged today (${doses.logged} of ${doses.target})`
+              : "Already logged today"}
+          </SectionTitle>
           <ul className="grid gap-2">
             {todays.map((entry) => (
               <Card as="li" key={entry.id} className="flex items-center gap-3 py-3.5">

@@ -5,9 +5,10 @@ import { useState, useTransition } from "react";
 
 import { Button, Card, FieldError, SectionTitle, cx } from "@/components/ui/primitives";
 import { Toggle } from "@/components/Onboarding";
+import { DoseScheduler } from "@/components/DoseScheduler";
 import { NotificationSetup } from "@/components/NotificationSetup";
 import { METHOD_META } from "@/lib/brand";
-import { formatReminderTime, minutesToTimeInput, timeInputToMinutes } from "@/lib/date";
+import { describeSchedule, type Dose } from "@/lib/doses";
 import type { ActionState } from "@/lib/validation";
 
 type Initial = {
@@ -19,7 +20,7 @@ type Initial = {
   unitSystem: string;
   timezone: string;
   dailyReminder: boolean;
-  reminderMinute: number;
+  doses: Dose[];
   streakWarning: boolean;
   milestoneAlert: boolean;
 };
@@ -198,47 +199,32 @@ export function SettingsForm({
       </section>
 
       <section>
-        <SectionTitle>Reminders</SectionTitle>
+        <SectionTitle>Doses &amp; reminders</SectionTitle>
         <Card className="grid gap-4">
-          <Row
-            label="Daily reminder"
-            hint="One nudge a day, at the time you pick."
-            on={state.dailyReminder}
-            onChange={(v) => set("dailyReminder", v)}
+          <DoseScheduler
+            doses={state.doses}
+            onChange={(doses) => set("doses", doses)}
+            remindersOn={state.dailyReminder}
+            onRemindersChange={(v) => set("dailyReminder", v)}
           />
+
           {state.dailyReminder ? (
-            <div>
-              <label
-                htmlFor="reminder"
-                className="mb-1.5 block text-sm font-extrabold text-charcoal-700"
-              >
-                Remind me at
-              </label>
-              <input
-                id="reminder"
-                type="time"
-                value={minutesToTimeInput(state.reminderMinute)}
-                onChange={(e) => set("reminderMinute", timeInputToMinutes(e.target.value))}
-                className="h-12 w-full rounded-2xl border border-cream-300 px-4 text-lg font-bold outline-none focus:border-ember-400"
-              />
-              <p className="mt-1.5 text-xs text-charcoal-500">
-                Around {formatReminderTime(state.reminderMinute)}.
-              </p>
-            </div>
+            <p className="text-xs text-charcoal-500">{describeSchedule(state.doses)}</p>
           ) : null}
-          <Row
-            label="Streak warning"
-            hint="A heads-up if the day's nearly over."
-            on={state.streakWarning}
-            onChange={(v) => set("streakWarning", v)}
-          />
-          <Row
-            label="Milestone alerts"
-            hint="When you hit 7, 30, 90 days and beyond."
-            on={state.milestoneAlert}
-            onChange={(v) => set("milestoneAlert", v)}
-          />
-          <div className="border-t border-cream-200 pt-4">
+
+          <div className="grid gap-4 border-t border-cream-200 pt-4">
+            <Row
+              label="Streak warning"
+              hint="A heads-up if the day's nearly over."
+              on={state.streakWarning}
+              onChange={(v) => set("streakWarning", v)}
+            />
+            <Row
+              label="Milestone alerts"
+              hint="When you hit 7, 30, 90 days and beyond."
+              on={state.milestoneAlert}
+              onChange={(v) => set("milestoneAlert", v)}
+            />
             <NotificationSetup enabled={state.dailyReminder} />
           </div>
         </Card>
