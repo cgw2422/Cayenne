@@ -124,8 +124,8 @@ Everything cascades from `User`, so account deletion is a single statement.
 ## Deploying to Railway
 
 Railway builds this with Nixpacks; `railway.json` pins the build and start
-commands. `npm start` runs `prisma migrate deploy` before booting, so schema
-changes apply on every deploy.
+commands and `.nvmrc` pins Node. `npm start` applies migrations and seeds the
+catalog before booting, so a fresh deploy needs no manual database step.
 
 1. **Create the project.** In Railway, *New Project → Deploy from GitHub repo*
    and pick this repository and branch.
@@ -143,19 +143,10 @@ changes apply on every deploy.
    set it after generating a domain and redeploy once.
 4. **Generate a domain.** *Settings → Networking → Generate Domain*. Railway
    injects `PORT`, which `next start` already honours.
-5. **Seed the reference data — required.** Goals, quotes, badges, challenges and
-   the recipe library live in the database, so the app is not usable until this
-   runs. Once, from a local checkout:
-
-   ```bash
-   npm install
-   npx @railway/cli login
-   npx @railway/cli link          # select the project and the app service
-   npx @railway/cli run npm run db:seed
-   ```
-
-   The seed is idempotent (every write is an upsert), so re-running it after a
-   content change is safe.
+5. **That's it.** `npm start` runs `prisma migrate deploy` and then seeds the
+   reference data (goals, quotes, badges, challenges, recipes) before booting.
+   Both steps are idempotent, so every deploy converges on the right schema and
+   catalog without a manual step.
 
 Then open the domain and create an account. The lifetime-unlock button is a
 stand-in for checkout and is disabled in production unless `ALLOW_DEV_UNLOCK` is
