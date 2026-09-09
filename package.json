@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "test": "tsx --test src/lib/*.test.ts src/lib/share/*.test.ts",
     "start:only": "next start",
-    "share:samples": "tsx scripts/share-samples.tsx"
+    "share:samples": "tsx scripts/share-samples.tsx",
+    "grant": "tsx scripts/grant.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
