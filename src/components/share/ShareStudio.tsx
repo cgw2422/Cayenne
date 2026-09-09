@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { Button, Card, cx } from "@/components/ui/primitives";
 import { Toggle } from "@/components/Onboarding";
 import { CAPTION_STYLES, CAPTION_STYLE_LABEL, type CaptionStyle } from "@/lib/share/captions";
+import { DEFAULT_TONE, TONES, TONE_BLURB, TONE_LABEL, type Tone } from "@/lib/share/voice";
 
 import {
   DEFAULT_TOGGLES,
@@ -60,6 +61,7 @@ export function ShareStudio({
   const [kind, setKind] = useState<ShareKind | null>(initialKind);
   const [theme, setTheme] = useState<ThemeId>(initialTheme);
   const [size, setSize] = useState<SizeId>("FACEBOOK");
+  const [tone, setTone] = useState<Tone>(DEFAULT_TONE);
   const [toggles, setToggles] = useState<ShareToggles>(DEFAULT_TOGGLES);
   const [quoteMode, setQuoteMode] = useState<"today" | "custom" | "none">("today");
   const [customQuote, setCustomQuote] = useState<string>(quotes[0]?.text ?? "");
@@ -88,18 +90,18 @@ export function ShareStudio({
     const on = (Object.keys(toggles) as (keyof ShareToggles)[])
       .filter((k) => toggles[k])
       .join(",");
-    const params = new URLSearchParams({ kind, theme, size, on, scale: "0.5" });
+    const params = new URLSearchParams({ kind, theme, size, tone, on, scale: "0.5" });
     if (quoteParam !== null) params.set("quote", quoteParam);
     if (achievementId) params.set("achievement", achievementId);
     return `/api/share/preview?${params.toString()}`;
-  }, [kind, theme, size, toggles, quoteParam, achievementId]);
+  }, [kind, theme, size, tone, toggles, quoteParam, achievementId]);
 
   function thumbSrc(t: ThemeId) {
     if (!kind) return "";
     const on = (Object.keys(toggles) as (keyof ShareToggles)[])
       .filter((k) => toggles[k])
       .join(",");
-    const params = new URLSearchParams({ kind, theme: t, size, on, scale: "0.14" });
+    const params = new URLSearchParams({ kind, theme: t, size, tone, on, scale: "0.14" });
     if (quoteParam !== null) params.set("quote", quoteParam);
     if (achievementId) params.set("achievement", achievementId);
     return `/api/share/preview?${params.toString()}`;
@@ -256,6 +258,49 @@ export function ShareStudio({
           ))}
         </div>
       </section>
+
+      {/* ----------------------------------------------------- personality -- */}
+      <Card className="grid gap-3">
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-charcoal-500">
+            Make it personal
+          </p>
+          <p className="mt-1 text-xs text-charcoal-500">
+            Changes how the card sounds. Your numbers stay exactly the same.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {TONES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              aria-pressed={tone === t}
+              onClick={() => {
+                setTone(t);
+                setResult(null);
+              }}
+              className={cx(
+                "tap rounded-2xl border-2 px-3 py-3 text-left transition-all active:scale-[0.98]",
+                tone === t
+                  ? "border-cayenne-600 bg-cayenne-50"
+                  : "border-cream-300 bg-white",
+              )}
+            >
+              <span
+                className={cx(
+                  "block text-sm font-extrabold",
+                  tone === t ? "text-cayenne-700" : "text-charcoal-900",
+                )}
+              >
+                {TONE_LABEL[t]}
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-charcoal-500">
+                {TONE_BLURB[t]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {/* --------------------------------------------------------- content -- */}
       <Card className="grid gap-3.5">
@@ -455,6 +500,7 @@ export function ShareStudio({
       size,
       toggles,
       quote: quoteForPublish,
+      tone,
       achievementId,
     });
     setResult(r);

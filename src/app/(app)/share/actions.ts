@@ -5,6 +5,7 @@ import { requireUser } from "@/server/auth";
 import { buildCardStats } from "@/server/share/stats";
 import { imageUrl, publishCard, shareUrl } from "@/server/share/publish";
 import { captionsFor, type CaptionStyle } from "@/lib/share/captions";
+import { DEFAULT_TONE, TONES, type Tone } from "@/lib/share/voice";
 import {
   DEFAULT_TOGGLES,
   SHARE_KINDS,
@@ -22,6 +23,8 @@ export type PublishInput = {
   theme: string;
   size: string;
   toggles: Partial<ShareToggles>;
+  /** The card's personality. Changes the headline, never the numbers. */
+  tone?: string;
   /** undefined keeps today's quote, null removes it, a string overrides it. */
   quote?: string | null;
   achievementId?: string | null;
@@ -55,13 +58,16 @@ export async function publishShareCard(input: PublishInput): Promise<PublishResu
     : "FACEBOOK";
 
   const toggles: ShareToggles = { ...DEFAULT_TOGGLES, ...input.toggles };
+  const tone = (TONES as readonly string[]).includes(input.tone ?? "")
+    ? (input.tone as Tone)
+    : DEFAULT_TONE;
 
   const stats = await buildCardStats(user, {
     achievementId: input.achievementId ?? undefined,
     quoteOverride: input.quote,
   });
 
-  const card = await publishCard({ userId: user.id, kind, theme, size, stats, toggles });
+  const card = await publishCard({ userId: user.id, kind, theme, size, tone, stats, toggles });
 
   await record(user.id, "IMAGE_GENERATED", { kind, theme, size });
 

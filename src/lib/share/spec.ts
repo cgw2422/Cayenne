@@ -1,203 +1,149 @@
 import type { IconName } from "@/lib/share/icons";
-import { voiceFor } from "@/lib/share/voice";
+import { voiceFor, type Tone } from "@/lib/share/voice";
 import type { CardSpec, CardStats, ShareKind, ShareToggles } from "@/lib/share/types";
 
 /**
- * Turns verified stats plus the user's toggles into a layout-agnostic card spec.
- * Themes render this; they never touch the raw stats. Adding a card type means
- * adding a branch here, not touching any theme.
+ * Turns verified stats, the user's toggles and their chosen tone into a
+ * layout-agnostic spec.
+ *
+ * Each card type gets a genuinely different shape — a streak card leads with a
+ * number, a journey card with a rail between two dates, a pep talk with nothing
+ * but the line. The theme then supplies palette and chrome, so seven shapes and
+ * six themes stay independent instead of multiplying.
+ *
+ * Restraint is deliberate: at Facebook feed width these render at roughly 29%,
+ * so anything secondary is either large or absent. Two stats is the ceiling.
  */
 export function buildSpec(
   kind: ShareKind,
   stats: CardStats,
   toggles: ShareToggles,
+  tone: Tone,
 ): CardSpec {
   const chip = (icon: IconName, label: string, value: string) => ({ icon, label, value });
   const quote = toggles.quote && stats.quote ? stats.quote : null;
-  const voice = voiceFor(kind, stats.streak, stats.totalDays);
+  const voice = voiceFor(kind, stats.streak, tone);
+
+  const base = {
+    kind,
+    eyebrow: null,
+    heroValue: null,
+    heroUnit: null,
+    heroTitle: null,
+    subline: null,
+    voice,
+    stats: [],
+    rail: null,
+    quote: null,
+    ring: null,
+    footnote: null,
+  } satisfies CardSpec;
 
   switch (kind) {
-    case "HOT_STREAK": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.longestStreak) {
-        stats_.push(chip("flame", "Longest streak", `${stats.longestStreak}`));
-      }
-      if (toggles.totalDays) {
-        stats_.push(chip("pepper", "Total cayenne days", `${stats.totalDays}`));
-      }
+    // The number is the whole card. One supporting stat at most.
+    case "HOT_STREAK":
       return {
-        kind,
-        eyebrow: null,
+        ...base,
         heroValue: `${stats.streak}`,
-        heroUnit: "DAY HOT STREAK",
-        heroTitle: null,
-        subline: null,
-        voice,
-        stats: stats_,
-        quote,
-        ring: null,
-        footnote: null,
+        heroUnit: stats.streak === 1 ? "DAY HOT STREAK" : "DAY HOT STREAK",
+        stats: toggles.totalDays
+          ? [chip("pepper", "Days logged", `${stats.totalDays}`)]
+          : [],
       };
-    }
 
-    case "JOURNEY": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.totalDays) stats_.push(chip("pepper", "Days logged", `${stats.totalDays}`));
-      if (toggles.longestStreak) {
-        stats_.push(chip("flame", "Longest streak", `${stats.longestStreak}`));
-      }
-      if (toggles.consistency) {
-        stats_.push(chip("trend", "Consistency", `${stats.consistency}%`));
-      }
+    // A rail between two dates: the shape says "this went on a while".
+    case "JOURNEY":
       return {
-        kind,
+        ...base,
         eyebrow: "MY CAYENNE JOURNEY",
         heroValue: `${stats.daysSinceStart}`,
-        heroUnit: "DAYS",
-        heroTitle: null,
-        subline: null,
-        voice,
-        stats: stats_,
-        quote,
-        ring: null,
-        footnote:
+        heroUnit: "DAYS IN",
+        rail:
           toggles.startDate && stats.startedOn
-            ? `Started ${stats.startedOn}  ·  Still going ${stats.todayLabel}`
+            ? { from: shortDate(stats.startedOn), to: shortDate(stats.todayLabel) }
             : null,
+        stats: toggles.totalDays
+          ? [chip("pepper", "Days logged", `${stats.totalDays}`)]
+          : [],
       };
-    }
 
+    // Mascot-led. The badge name is the headline, the threshold the number.
     case "ACHIEVEMENT": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.streak) chipPush(stats_, chip("flame", "Day streak", `${stats.streak}`));
-      if (toggles.totalDays) {
-        chipPush(stats_, chip("pepper", "Total days", `${stats.totalDays}`));
-      }
-      // Lead with the number when there is one: "30 / RED HOT" reads as a
-      // milestone, where the badge name alone reads as a notification.
       const numeric = stats.achievementValue && stats.achievementValue > 1;
       return {
-        kind,
+        ...base,
         eyebrow: "I DID IT.",
         heroValue: numeric ? `${stats.achievementValue}` : null,
+        heroTitle: numeric ? null : (stats.achievementTitle ?? "Badge unlocked"),
         heroUnit: numeric ? (stats.achievementTitle ?? "").toUpperCase() : null,
-        heroTitle: numeric ? null : (stats.achievementTitle ?? "Achievement unlocked"),
-        subline: stats.achievementDescription ?? "Another badge in the collection.",
-        voice,
-        stats: stats_,
-        quote,
-        ring: null,
-        footnote: null,
       };
     }
 
+    // The ring dominates; the number lives inside it.
     case "CHALLENGE": {
       const day = stats.challengeDay ?? 0;
       const total = stats.challengeTotal ?? 30;
-      const percent = total > 0 ? Math.round((day / total) * 100) : 0;
-      const left = Math.max(0, total - day);
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.streak) stats_.push(chip("flame", "Day streak", `${stats.streak}`));
-      if (toggles.totalDays) stats_.push(chip("pepper", "Total days", `${stats.totalDays}`));
       return {
-        kind,
+        ...base,
         eyebrow: (stats.challengeTitle ?? "Cayenne Challenge").toUpperCase(),
-        heroValue: `DAY ${day} / ${total}`,
-        heroUnit: null,
-        heroTitle: null,
-        subline: left > 0 ? `${left} ${left === 1 ? "day" : "days"} to go` : "Complete.",
-        voice,
-        stats: stats_,
-        quote,
-        ring: { done: day, total, percent },
-        footnote: null,
+        ring: {
+          done: day,
+          total,
+          percent: total > 0 ? Math.round((day / total) * 100) : 0,
+        },
+        heroUnit: `DAY ${day} OF ${total}`,
       };
     }
 
+    // The one card where stacked numbers are the point.
     case "PROGRESS": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.streak) stats_.push(chip("flame", "Current streak", `${stats.streak}`));
+      const rows: CardSpec["stats"] = [];
       if (toggles.longestStreak) {
-        stats_.push(chip("trophy", "Longest streak", `${stats.longestStreak}`));
+        rows.push(chip("flame", "Longest streak", `${stats.longestStreak}`));
       }
-      if (toggles.totalDays) stats_.push(chip("pepper", "Days logged", `${stats.totalDays}`));
       if (toggles.consistency) {
-        stats_.push(chip("trend", "Consistency", `${stats.consistency}%`));
+        rows.push(chip("trend", "Consistency", `${stats.consistency}%`));
       }
-      if (toggles.amount && stats.amountLabel) {
-        stats_.push(chip("spoon", "Usual amount", stats.amountLabel));
-      }
-      if (toggles.method && stats.methodLabel) {
-        stats_.push(chip(stats.methodIcon ?? "glass", "Favourite method", stats.methodLabel));
+      if (!rows.length && toggles.streak) {
+        rows.push(chip("flame", "Current streak", `${stats.streak}`));
       }
       return {
-        kind,
+        ...base,
         eyebrow: "MY PROGRESS",
         heroValue: `${stats.totalDays}`,
         heroUnit: stats.totalDays === 1 ? "DAY LOGGED" : "DAYS LOGGED",
-        heroTitle: null,
-        subline: null,
-        voice,
-        stats: stats_,
-        quote,
-        ring: null,
-        footnote: null,
+        stats: rows.slice(0, 2),
       };
     }
 
-    case "PEP_TALK": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.streak && stats.streak > 0) {
-        stats_.push(chip("flame", "Day streak", `${stats.streak}`));
-      }
-      if (toggles.totalDays) stats_.push(chip("pepper", "Days logged", `${stats.totalDays}`));
+    // The month name is the hero; the ratio sits under it.
+    case "MONTHLY_RECAP":
       return {
-        kind,
-        eyebrow: null,
-        heroValue: null,
-        heroUnit: null,
+        ...base,
+        eyebrow: "CAYENNE RECAP",
+        heroTitle: (stats.monthLabel ?? "This month").toUpperCase(),
+        heroUnit: `${stats.monthDaysLogged ?? 0} OF ${stats.monthDaysTotal ?? 30} DAYS`,
+        stats: toggles.longestStreak
+          ? [chip("flame", "Longest streak", `${stats.longestStreak}`)]
+          : [],
+      };
+
+    // No number at all. The line is the card.
+    case "PEP_TALK":
+      return {
+        ...base,
         heroTitle: stats.quote ?? "Small habit. Big fire.",
-        subline: null,
-        voice,
-        stats: stats_,
         quote: null,
-        ring: null,
-        footnote: null,
       };
-    }
-
-    case "MONTHLY_RECAP": {
-      const stats_: CardSpec["stats"] = [];
-      if (toggles.longestStreak) {
-        stats_.push(chip("flame", "Longest streak", `${stats.longestStreak}`));
-      }
-      if (toggles.amount && stats.amountLabel) {
-        stats_.push(chip("pepper", "Most common", stats.amountLabel));
-      }
-      if (toggles.method && stats.methodLabel) {
-        stats_.push(chip(stats.methodIcon ?? "glass", "Favourite method", stats.methodLabel));
-      }
-      if (toggles.achievement && stats.monthAchievements) {
-        stats_.push(chip("trophy", "Achievements", `${stats.monthAchievements}`));
-      }
-      return {
-        kind,
-        eyebrow: `MY ${(stats.monthLabel ?? "MONTH").toUpperCase()} CAYENNE RECAP`,
-        heroValue: `${stats.monthDaysLogged ?? 0} / ${stats.monthDaysTotal ?? 30}`,
-        heroUnit: "DAYS LOGGED",
-        heroTitle: null,
-        subline: "Keeping it spicy.",
-        voice,
-        stats: stats_,
-        quote,
-        ring: null,
-        footnote: null,
-      };
-    }
   }
+
+  // Unreachable: every ShareKind is handled above.
+  return { ...base, quote };
 }
 
-/** Caps a stat row at three chips — four wraps badly at every export size. */
-function chipPush(list: CardSpec["stats"], value: CardSpec["stats"][number]) {
-  if (list.length < 3) list.push(value);
+/** "Sat, Jul 15, 2026" → "15 Jul 2026", which fits the rail at feed size. */
+function shortDate(label: string): string {
+  const parts = label.replace(/^[A-Za-z]{3},\s*/, "");
+  const match = parts.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})$/);
+  return match ? `${match[2]} ${match[1]} ${match[3]}` : parts;
 }

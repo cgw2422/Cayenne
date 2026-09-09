@@ -50,7 +50,7 @@ export function togglesFromCard(card: ShareCard): ShareToggles {
 }
 
 export function specFromCard(card: ShareCard) {
-  return buildSpec(card.kind, statsFromCard(card), togglesFromCard(card));
+  return buildSpec(card.kind, statsFromCard(card), togglesFromCard(card), card.tone);
 }
 
 /** Maps stats + toggles onto the snapshot columns a card stores. */

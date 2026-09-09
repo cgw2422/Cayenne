@@ -143,7 +143,14 @@ export type CardStats = {
   quote: string | null;
 };
 
-/** A layout-agnostic description of one card. Themes decide how it looks. */
+/**
+ * A layout-agnostic description of one card.
+ *
+ * `kind` picks the structural shape (a streak card and a journey card are laid
+ * out differently); the theme supplies palette, decoration and chrome. The two
+ * are independent, which is what keeps seven shapes × six themes from becoming
+ * forty-two layouts.
+ */
 export type CardSpec = {
   kind: ShareKind;
   eyebrow: string | null;
@@ -151,7 +158,14 @@ export type CardSpec = {
   heroUnit: string | null;
   heroTitle: string | null;
   subline: string | null;
+  /**
+   * At most two, and only where they earn their place. At Facebook feed width a
+   * 1200px card renders at roughly 29%, so a stat label under ~30px is simply
+   * unreadable — better to drop it than to shrink it.
+   */
   stats: { icon: IconName; label: string; value: string }[];
+  /** JOURNEY renders a start → today rail instead of stats. */
+  rail: { from: string; to: string } | null;
   /** The line with personality. This is the scroll-stopper, not a stat. */
   voice: string;
   quote: string | null;

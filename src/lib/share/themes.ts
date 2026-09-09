@@ -8,7 +8,10 @@ import type { ThemeId } from "@/lib/share/types";
  */
 export type Theme = {
   id: ThemeId;
-  layout: "signature" | "onFire" | "fresh" | "mascot" | "minimal" | "facebook";
+  /** Which frame the card sits in. */
+  chrome: "standard" | "minimal" | "facebook";
+  /** Which illustration set decorates it. */
+  decor: "peppersCorner" | "fire" | "harvest" | "confetti" | "none";
   background: string;
   ink: string;
   inkSoft: string;
@@ -27,7 +30,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Cream and cayenne red, with an illustrated pepper anchoring the number.
   SIGNATURE: {
     id: "SIGNATURE",
-    layout: "signature",
+    chrome: "standard",
+    decor: "peppersCorner",
     background: "linear-gradient(168deg,#FFFDF8 0%,#FFF7E8 58%,#F6E8CE 100%)",
     ink: "#202020",
     inkSoft: "#6B6660",
@@ -43,7 +47,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Dark and dramatic: heat rings behind the number, flames along the base.
   ON_FIRE: {
     id: "ON_FIRE",
-    layout: "onFire",
+    chrome: "standard",
+    decor: "fire",
     background: "linear-gradient(172deg,#231007 0%,#180D08 48%,#120A06 100%)",
     ink: "#FFF7E8",
     inkSoft: "rgba(255,247,232,0.62)",
@@ -59,7 +64,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Natural and editorial: whole peppers and a drift of ground cayenne.
   FRESH_CAYENNE: {
     id: "FRESH_CAYENNE",
-    layout: "fresh",
+    chrome: "standard",
+    decor: "harvest",
     background: "linear-gradient(168deg,#F6EBD8 0%,#EFDDC0 52%,#E3CBA4 100%)",
     ink: "#12372A",
     inkSoft: "#5E6B57",
@@ -75,7 +81,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // The character carries it: mascot beside the number, speech bubble, confetti.
   MASCOT: {
     id: "MASCOT",
-    layout: "mascot",
+    chrome: "standard",
+    decor: "confetti",
     background: "linear-gradient(160deg,#FFF3D8 0%,#FFE0B8 55%,#FFCE95 100%)",
     ink: "#202020",
     inkSoft: "#7A6A55",
@@ -91,7 +98,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Enormous type, left-aligned, almost nothing else.
   MINIMAL: {
     id: "MINIMAL",
-    layout: "minimal",
+    chrome: "minimal",
+    decor: "none",
     background: "linear-gradient(180deg,#FFFFFF 0%,#FFFCF5 100%)",
     ink: "#181818",
     inkSoft: "#8A857E",
@@ -107,7 +115,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   // Built to stop a thumb: the voice line leads, in a red band, above the number.
   FACEBOOK: {
     id: "FACEBOOK",
-    layout: "facebook",
+    chrome: "facebook",
+    decor: "none",
     background: "linear-gradient(178deg,#14402F 0%,#0E2E22 62%,#081A12 100%)",
     ink: "#FFF7E8",
     inkSoft: "rgba(255,247,232,0.66)",

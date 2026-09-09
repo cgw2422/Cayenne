@@ -9,6 +9,7 @@ import {
   type SizeId,
   type ThemeId,
 } from "@/lib/share/types";
+import { DEFAULT_TONE, TONES, type Tone } from "@/lib/share/voice";
 import { getSessionUser } from "@/server/auth";
 import { buildCardStats } from "@/server/share/stats";
 import { renderCardImage } from "@/server/share/image";
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     "FACEBOOK",
   ) as SizeId;
 
+  const tone = pick(params.get("tone"), TONES, DEFAULT_TONE) as Tone;
   const toggles = readToggles(params);
   const quoteOverride = params.has("quote") ? params.get("quote") || null : undefined;
 
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
     quoteOverride,
   });
 
-  return renderCardImage(buildSpec(kind, stats, toggles), theme, size, {
+  return renderCardImage(buildSpec(kind, stats, toggles, tone), theme, size, {
     scale: clampScale(params.get("scale")),
     cache: "private",
   });

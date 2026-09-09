@@ -470,6 +470,14 @@ enum ShareTheme {
   FACEBOOK
 }
 
+/// The personality of a card's headline. Changes words only, never numbers.
+enum ShareTone {
+  CLEAN
+  FUNNY
+  MOTIVATIONAL
+  PROUD
+}
+
 enum ShareSize {
   FACEBOOK
   INSTAGRAM
@@ -490,6 +498,7 @@ model ShareCard {
   kind   ShareKind
   theme  ShareTheme
   size   ShareSize
+  tone   ShareTone  @default(FUNNY)
 
   streak         Int
   longestStreak  Int

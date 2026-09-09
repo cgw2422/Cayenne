@@ -1,21 +1,24 @@
 import React from "react";
 
 import { Flames, Halftone, MascotArt, Pepper, PowderField } from "@/lib/share/art";
-import { Icon, type IconName } from "@/lib/share/icons";
+import { Icon } from "@/lib/share/icons";
 import { THEMES, type Theme } from "@/lib/share/themes";
 import type { CardSpec, ThemeId } from "@/lib/share/types";
 
 /**
  * Renders a card spec into JSX for the image renderer.
  *
- * Each theme has its own composition rather than sharing one stack, so the six
- * templates are genuinely different graphics. What they share is the vocabulary:
- * pepper illustration, the hero number, the voice line, and the brand lockup —
- * which is what makes them recognisable as a set.
+ * Two independent axes. `Chrome` is the theme: background, decoration, brand
+ * mark and lockup. `Shape` is the card type: a streak leads with a number, a
+ * journey with a rail between dates, a pep talk with nothing but the line. Seven
+ * shapes and six themes compose rather than multiply.
  *
- * Renderer constraints worth remembering: flex only, every element with more
- * than one child needs an explicit display, no blur, and radial gradients are
- * unreliable — depth comes from layered shapes and linear washes.
+ * Everything is sized against one constraint: a 1200px card renders at roughly
+ * 350px in a mobile Facebook feed, so nothing that matters is below ~34px here
+ * (≈10px there) and the hero is enormous.
+ *
+ * Renderer limits worth remembering: flex only, no blur, radial gradients are
+ * unreliable, and neither arrays of elements nor fragments survive inside <svg>.
  */
 export function renderCard(
   spec: CardSpec,
@@ -23,26 +26,12 @@ export function renderCard(
   output: { width: number; height: number },
 ) {
   const theme = THEMES[themeId];
-  const { width, height } = output;
-  // Every dimension derives from the actual output width, so a half-scale
-  // preview is a faithful miniature rather than a cramped full-size layout.
-  const u = width / 1200;
-  const ctx = { spec, theme, width, height, u };
+  const u = output.width / 1200;
+  const ctx: Ctx = { spec, theme, width: output.width, height: output.height, u };
 
-  switch (theme.layout) {
-    case "onFire":
-      return <OnFire {...ctx} />;
-    case "fresh":
-      return <Fresh {...ctx} />;
-    case "mascot":
-      return <MascotLayout {...ctx} />;
-    case "minimal":
-      return <Minimal {...ctx} />;
-    case "facebook":
-      return <Facebook {...ctx} />;
-    default:
-      return <Signature {...ctx} />;
-  }
+  if (theme.chrome === "facebook") return <FacebookChrome {...ctx} />;
+  if (theme.chrome === "minimal") return <MinimalChrome {...ctx} />;
+  return <StandardChrome {...ctx} />;
 }
 
 type Ctx = {
@@ -53,67 +42,20 @@ type Ctx = {
   u: number;
 };
 
-// ---------------------------------------------------------------- surface --
+// ----------------------------------------------------------------- pieces --
 
-function Surface({
-  theme,
-  children,
-  padX,
-  padY,
-}: Ctx & { children: React.ReactNode; padX: number; padY: number }) {
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: `${padY}px ${padX}px`,
-        background: theme.background,
-        fontFamily: "Nunito",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-// ------------------------------------------------------------------ parts --
-
-/** Hero number, sized so it lands in a feed before anything else is read. */
-function Hero({
-  value,
-  u,
-  color,
-  max,
-}: {
-  value: string;
-  u: number;
-  color: string;
-  max?: number;
-}) {
+/** The number, as large as the card can bear. It is the whole point. */
+function Hero({ value, u, color }: { value: string; u: number; color: string }) {
   const size =
-    value.length <= 2
-      ? 440
-      : value.length <= 3
-        ? 340
-        : value.length <= 7
-          ? 190
-          : value.length <= 11
-            ? 130
-            : 104;
+    value.length <= 2 ? 460 : value.length <= 3 ? 360 : value.length <= 5 ? 250 : 180;
   return (
     <div
       style={{
         display: "flex",
-        fontSize: Math.min(size, max ?? size) * u,
+        fontSize: size * u,
         fontWeight: 900,
-        lineHeight: 0.86,
-        letterSpacing: -8 * u,
+        lineHeight: 0.84,
+        letterSpacing: -9 * u,
         color,
       }}
     >
@@ -122,16 +64,18 @@ function Hero({
   );
 }
 
-function Unit({ text, u, color, size = 46 }: { text: string; u: number; color: string; size?: number }) {
+function Unit({ text, u, color, width }: { text: string; u: number; color: string; width: number }) {
   return (
     <div
       style={{
         display: "flex",
-        fontSize: (text.length > 18 ? size * 0.76 : size) * u,
+        fontSize: (text.length > 20 ? 44 : 56) * u,
         fontWeight: 900,
         letterSpacing: 5 * u,
         color,
         textAlign: "center",
+        maxWidth: width,
+        lineHeight: 1.1,
       }}
     >
       {text}
@@ -139,30 +83,30 @@ function Unit({ text, u, color, size = 46 }: { text: string; u: number; color: s
   );
 }
 
-/** The line with personality — the thing someone actually stops to read. */
+/** The human line. Second only to the number, and never below 40px. */
 function Voice({
   text,
   u,
   color,
   width,
-  size = 40,
+  align = "center",
 }: {
   text: string;
   u: number;
   color: string;
   width: number;
-  size?: number;
+  align?: "center" | "left";
 }) {
   return (
     <div
       style={{
         display: "flex",
-        fontSize: (text.length > 62 ? size * 0.82 : size) * u,
+        fontSize: (text.length > 52 ? 44 : 52) * u,
         fontWeight: 800,
-        lineHeight: 1.24,
+        lineHeight: 1.22,
         color,
         maxWidth: width,
-        textAlign: "center",
+        textAlign: align,
       }}
     >
       {text}
@@ -170,35 +114,25 @@ function Voice({
   );
 }
 
-/** Stats as an inline run with hairline dividers — lighter than boxed chips. */
-function StatRun({
-  stats,
-  u,
-  ink,
-  soft,
-  accent,
-  rule,
-}: {
-  stats: CardSpec["stats"];
-  u: number;
-  ink: string;
-  soft: string;
-  accent: string;
-  rule: string;
-}) {
-  if (!stats.length) return null;
+/**
+ * At most two supporting numbers, set large enough to survive the feed. Labels
+ * are 30px here — about 9px at thumbnail size — which is the floor for anything
+ * worth printing at all.
+ */
+function Stats({ spec, theme, u }: Ctx) {
+  if (!spec.stats.length) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-      {stats.slice(0, 3).map((stat, i) => (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      {spec.stats.slice(0, 2).map((stat, i) => (
         <div key={stat.label} style={{ display: "flex", alignItems: "center" }}>
           {i > 0 ? (
             <div
               style={{
                 display: "flex",
-                width: 2 * u,
-                height: 54 * u,
-                background: rule,
-                margin: `0 ${34 * u}px`,
+                width: 3 * u,
+                height: 66 * u,
+                background: theme.rule,
+                margin: `0 ${44 * u}px`,
               }}
             />
           ) : null}
@@ -207,22 +141,22 @@ function StatRun({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 10 * u,
-                fontSize: 50 * u,
+                gap: 12 * u,
+                fontSize: 64 * u,
                 fontWeight: 900,
-                color: ink,
+                color: theme.ink,
               }}
             >
-              <Icon name={stat.icon as IconName} size={36 * u} color={ink} accent={accent} />
+              <Icon name={stat.icon} size={46 * u} color={theme.ink} accent={theme.accent} />
               {stat.value}
             </div>
             <div
               style={{
                 display: "flex",
-                fontSize: 20 * u,
+                fontSize: 34 * u,
                 fontWeight: 800,
                 letterSpacing: 2.4 * u,
-                color: soft,
+                color: theme.inkSoft,
               }}
             >
               {stat.label.toUpperCase()}
@@ -234,399 +168,367 @@ function StatRun({
   );
 }
 
-/**
- * The brand lockup. Big enough to read in a feed and to become familiar over
- * repeated posts, small enough that the accomplishment stays the hero.
- */
-function Lockup({ theme, u, invert }: { theme: Theme; u: number; invert?: boolean }) {
-  const ink = invert ? "#FFF7E8" : theme.ink;
-  const soft = invert ? "rgba(255,247,232,0.7)" : theme.inkSoft;
+/** Journey's rail: two dates with a line between them. */
+function Rail({ spec, theme, u, width }: Ctx) {
+  if (!spec.rail) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 24 * u, maxWidth: width - 200 * u }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 800, letterSpacing: 3 * u, color: theme.inkSoft }}>
+          STARTED
+        </div>
+        <div style={{ display: "flex", fontSize: 40 * u, fontWeight: 900, color: theme.ink }}>
+          {spec.rail.from}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 * u }}>
+        <div style={{ display: "flex", width: 90 * u, height: 4 * u, background: theme.rule }} />
+        <Pepper size={54 * u} rotate={90} {...theme.pepper} />
+        <div style={{ display: "flex", width: 90 * u, height: 4 * u, background: theme.rule }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 800, letterSpacing: 3 * u, color: theme.accent }}>
+          STILL GOING
+        </div>
+        <div style={{ display: "flex", fontSize: 40 * u, fontWeight: 900, color: theme.ink }}>
+          {spec.rail.to}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Ring({ spec, theme, u }: Ctx) {
+  if (!spec.ring) return null;
+  const size = 420 * u;
+  const stroke = 34 * u;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <svg width={size} height={size} style={{ position: "absolute" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={theme.rule} strokeWidth={stroke} fill="none" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={theme.accent}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - Math.min(1, spec.ring.percent / 100))}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ display: "flex", fontSize: 150 * u, fontWeight: 900, color: theme.hero, lineHeight: 0.9 }}>
+          {spec.ring.percent}%
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The brand block. Sized so it is plainly readable in a feed. */
+function Lockup({ theme, u, align = "center" }: { theme: Theme; u: number; align?: "center" | "left" }) {
+  const items = align === "left" ? "flex-start" : "center";
 
   if (theme.lockup === "tracked") {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 * u }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14 * u,
-            fontSize: 30 * u,
-            fontWeight: 800,
-            letterSpacing: 2 * u,
-            color: soft,
-          }}
-        >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 8 * u }}>
+        <div style={{ display: "flex", fontSize: 30 * u, fontWeight: 800, letterSpacing: 3 * u, color: theme.inkSoft }}>
           TRACKED WITH
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 * u }}>
-          <Pepper size={54 * u} rotate={-16} {...theme.pepper} />
-          <div
-            style={{
-              display: "flex",
-              fontSize: 60 * u,
-              fontWeight: 900,
-              color: ink,
-              letterSpacing: -1.5 * u,
-            }}
-          >
+        <div style={{ display: "flex", alignItems: "center", gap: 16 * u }}>
+          <Pepper size={62 * u} rotate={-16} {...theme.pepper} />
+          <div style={{ display: "flex", fontSize: 66 * u, fontWeight: 900, color: theme.ink, letterSpacing: -2 * u }}>
             Cayenne Do It
           </div>
         </div>
-        {theme.showDomain ? (
-          <div
-            style={{
-              display: "flex",
-              fontSize: 24 * u,
-              fontWeight: 700,
-              letterSpacing: 3 * u,
-              color: soft,
-            }}
-          >
-            CAYENNEDOIT.COM
-          </div>
-        ) : null}
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 * u }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16 * u }}>
-        <Pepper size={62 * u} rotate={-16} {...theme.pepper} />
-        <div
-          style={{
-            display: "flex",
-            fontSize: 66 * u,
-            fontWeight: 900,
-            color: ink,
-            letterSpacing: -2 * u,
-          }}
-        >
+    <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 8 * u }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 18 * u }}>
+        <Pepper size={72 * u} rotate={-16} {...theme.pepper} />
+        <div style={{ display: "flex", fontSize: 74 * u, fontWeight: 900, color: theme.ink, letterSpacing: -2.5 * u }}>
           Cayenne Do It
         </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          fontSize: 27 * u,
-          fontWeight: 800,
-          letterSpacing: 6 * u,
-          color: theme.accent,
-        }}
-      >
+      <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 800, letterSpacing: 6 * u, color: theme.accent }}>
         SMALL HABIT. BIG FIRE.
       </div>
-      {theme.showDomain ? (
-        <div
-          style={{
-            display: "flex",
-            fontSize: 23 * u,
-            fontWeight: 700,
-            letterSpacing: 3 * u,
-            color: soft,
-          }}
-        >
-          CAYENNEDOIT.COM
-        </div>
-      ) : null}
     </div>
   );
 }
 
-function Ring({ percent, u, track, accent, ink, soft }: {
-  percent: number; u: number; track: string; accent: string; ink: string; soft: string;
-}) {
-  const size = 300 * u;
-  const stroke = 26 * u;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
+function BrandMark({ theme, u }: { theme: Theme; u: number }) {
   return (
-    <div style={{ position: "relative", display: "flex", width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <svg width={size} height={size} style={{ position: "absolute" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} stroke={accent} strokeWidth={stroke}
-          strokeLinecap="round" fill="none" strokeDasharray={c}
-          strokeDashoffset={c * (1 - Math.min(1, percent / 100))}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </svg>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ display: "flex", fontSize: 86 * u, fontWeight: 900, color: ink }}>{percent}%</div>
-        <div style={{ display: "flex", fontSize: 20 * u, fontWeight: 800, letterSpacing: 3 * u, color: soft }}>
-          COMPLETE
-        </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 14 * u }}>
+      <Pepper size={44 * u} rotate={-14} {...theme.pepper} />
+      <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
+        CAYENNE DO IT
       </div>
     </div>
   );
 }
 
-/** Absolutely-positioned decoration; `inset` is unsupported, so sides are explicit. */
 function Layer({ children, ...pos }: { children: React.ReactNode } & React.CSSProperties) {
   return <div style={{ position: "absolute", display: "flex", ...pos }}>{children}</div>;
 }
 
-// ---------------------------------------------------------------- layouts --
+// ----------------------------------------------------------------- shapes --
 
-/** SIGNATURE — cream, a big illustrated pepper crossing the number, clean. */
-function Signature(ctx: Ctx) {
-  const { spec, theme, width, height, u } = ctx;
-  return (
-    <Surface {...ctx} padX={90 * u} padY={66 * u}>
-      <Layer top={0} left={0} width={width} height={height}>
-        <Halftone width={width} height={height} color={theme.accent} gap={30 * u} radius={3 * u} opacity={0.08} />
-      </Layer>
-      {/* pepper anchored to the hero, breaking the grid a little */}
-      <Layer top={height * 0.16} left={-46 * u}>
-        <Pepper size={340 * u} rotate={28} {...theme.pepper} opacity={0.5} />
-      </Layer>
-      <Layer top={height * 0.6} left={width - 130 * u}>
-        <Pepper size={300 * u} rotate={-152} {...theme.pepper} opacity={0.42} />
-      </Layer>
+/**
+ * The content of the card, chosen by type. `align` lets the minimal chrome run
+ * the same shapes left-aligned without duplicating any of them.
+ */
+function Shape(ctx: Ctx & { align?: "center" | "left"; voiceShown?: boolean }) {
+  const { spec, theme, width, u } = ctx;
+  const align = ctx.align ?? "center";
+  const items = align === "left" ? "flex-start" : "center";
+  const gap = 26 * u;
 
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 14 * u }}>
-        <Pepper size={44 * u} rotate={-14} {...theme.pepper} />
-        <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
-          CAYENNE DO IT
-        </div>
-      </div>
+  const eyebrow = spec.eyebrow ? (
+    <div style={{ display: "flex", fontSize: 38 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accent }}>
+      {spec.eyebrow}
+    </div>
+  ) : null;
 
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", flex: 1, justifyContent: "center", gap: 0, paddingTop: 40 * u, paddingBottom: 40 * u }}>
-        {spec.eyebrow ? (
-          <div style={{ display: "flex", fontSize: 34 * u, fontWeight: 900, letterSpacing: 3 * u, color: theme.accent, marginBottom: 22 * u }}>
-            {spec.eyebrow}
-          </div>
-        ) : null}
-        {spec.ring ? <Ring percent={spec.ring.percent} u={u} track={theme.rule} accent={theme.accent} ink={theme.ink} soft={theme.inkSoft} /> : null}
-        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
-        {spec.heroTitle ? (
-          <div style={{ display: "flex", fontSize: 76 * u, fontWeight: 900, color: theme.hero, textAlign: "center", maxWidth: width - 220 * u, lineHeight: 1.06 }}>
-            {spec.heroTitle}
-          </div>
-        ) : null}
-        {spec.heroUnit ? (
-          <div style={{ display: "flex", marginTop: 14 * u }}>
-            <Unit text={spec.heroUnit} u={u} color={theme.accent} />
-          </div>
-        ) : null}
-
-        <div style={{ display: "flex", width: 120 * u, height: 5 * u, background: theme.accent, borderRadius: 5 * u, margin: `${34 * u}px 0` }} />
-
-        <Voice text={spec.voice} u={u} color={theme.ink} width={width - 200 * u} />
-      </div>
-
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * u }}>
-        {spec.stats.length ? (
-          <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
-        ) : null}
-        <Lockup theme={theme} u={u} />
-      </div>
-    </Surface>
+  const voice = ctx.voiceShown ? null : (
+    <Voice text={spec.voice} u={u} color={theme.ink} width={width - 190 * u} align={align} />
   );
-}
 
-/** ON FIRE — a glow band behind the number, embers, and a low flame edge. */
-function OnFire(ctx: Ctx) {
-  const { spec, theme, width, height, u } = ctx;
-  return (
-    <Surface {...ctx} padX={80 * u} padY={62 * u}>
-      {/* A warm band behind the hero does the work that a blur would, if the
-          renderer had one. Flames stay low so they read as an edge, not a fence. */}
-      <Layer top={height * 0.24} left={0} width={width} height={height * 0.34}>
+  // A pep talk is only the line — set as the hero, at hero scale.
+  if (spec.kind === "PEP_TALK") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 40 * u, textAlign: align }}>
         <div
           style={{
             display: "flex",
-            width,
-            height: height * 0.34,
-            background:
-              "linear-gradient(180deg, rgba(217,45,32,0) 0%, rgba(241,90,36,0.34) 45%, rgba(217,45,32,0) 100%)",
-          }}
-        />
-      </Layer>
-      <Layer bottom={0} left={0} width={width} height={height * 0.3}>
-        <PowderField width={width} height={height * 0.3} color="#F15A24" count={150} opacity={0.5} seed={31} />
-      </Layer>
-      <Layer bottom={0} left={0} width={width} height={height * 0.055}>
-        <Flames
-          width={width}
-          height={height * 0.055}
-          colors={["#4A1208", "#7A1F10", "#B52117", "#D9450F"]}
-        />
-      </Layer>
-      <Layer top={-30 * u} left={width - 120 * u}>
-        <Pepper size={280 * u} rotate={-158} {...theme.pepper} opacity={0.8} />
-      </Layer>
-      <Layer bottom={height * 0.1} left={-70 * u}>
-        <Pepper size={250 * u} rotate={36} {...theme.pepper} opacity={0.45} />
-      </Layer>
-
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12 * u }}>
-        <Pepper size={40 * u} rotate={-14} {...theme.pepper} />
-        <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
-          CAYENNE DO IT
-        </div>
-      </div>
-
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", flex: 1, justifyContent: "center", paddingTop: 30 * u, paddingBottom: 30 * u }}>
-        {spec.eyebrow ? (
-          <div style={{ display: "flex", fontSize: 34 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accentSoft, marginBottom: 18 * u }}>
-            {spec.eyebrow}
-          </div>
-        ) : null}
-        {spec.ring ? <Ring percent={spec.ring.percent} u={u} track={theme.rule} accent={theme.accent} ink={theme.ink} soft={theme.inkSoft} /> : null}
-        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
-        {spec.heroTitle ? (
-          <div style={{ display: "flex", fontSize: 76 * u, fontWeight: 900, color: theme.hero, textAlign: "center", maxWidth: width - 200 * u, lineHeight: 1.06 }}>
-            {spec.heroTitle}
-          </div>
-        ) : null}
-        {spec.heroUnit ? (
-          <div style={{ display: "flex", marginTop: 16 * u }}>
-            <Unit text={spec.heroUnit} u={u} color={theme.accent} />
-          </div>
-        ) : null}
-        <div style={{ display: "flex", marginTop: 34 * u }}>
-          <Voice text={spec.voice} u={u} color={theme.ink} width={width - 220 * u} />
-        </div>
-      </div>
-
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 30 * u }}>
-        {spec.stats.length ? (
-          <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
-        ) : null}
-        <Lockup theme={theme} u={u} />
-      </div>
-    </Surface>
-  );
-}
-
-/** FRESH CAYENNE — whole peppers and a drift of ground powder. Editorial. */
-function Fresh(ctx: Ctx) {
-  const { spec, theme, width, height, u } = ctx;
-  return (
-    <Surface {...ctx} padX={88 * u} padY={64 * u}>
-      <Layer bottom={0} left={0} width={width} height={height * 0.58}>
-        <PowderField width={width} height={height * 0.58} color={theme.accent} count={210} opacity={0.5} />
-      </Layer>
-      <Layer top={-40 * u} left={-60 * u}>
-        <Pepper size={280 * u} rotate={38} {...theme.pepper} opacity={0.9} />
-      </Layer>
-      <Layer top={40 * u} left={width - 170 * u}>
-        <Pepper size={230 * u} rotate={-32} {...theme.pepper} opacity={0.85} />
-      </Layer>
-      <Layer bottom={-50 * u} left={width * 0.5 - 90 * u}>
-        <Pepper size={220 * u} rotate={14} {...theme.pepper} opacity={0.22} />
-      </Layer>
-
-      <div style={{ position: "relative", display: "flex", fontSize: 26 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
-        CAYENNE DO IT
-      </div>
-
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", flex: 1, justifyContent: "center", paddingTop: 34 * u, paddingBottom: 34 * u }}>
-        {spec.eyebrow ? (
-          <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accent, marginBottom: 20 * u }}>
-            {spec.eyebrow}
-          </div>
-        ) : null}
-        {spec.ring ? <Ring percent={spec.ring.percent} u={u} track={theme.rule} accent={theme.accent} ink={theme.ink} soft={theme.inkSoft} /> : null}
-        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
-        {spec.heroTitle ? (
-          <div style={{ display: "flex", fontSize: 72 * u, fontWeight: 900, color: theme.hero, textAlign: "center", maxWidth: width - 260 * u, lineHeight: 1.06 }}>
-            {spec.heroTitle}
-          </div>
-        ) : null}
-        {spec.heroUnit ? (
-          <div style={{ display: "flex", marginTop: 14 * u }}>
-            <Unit text={spec.heroUnit} u={u} color={theme.accent} />
-          </div>
-        ) : null}
-        <div style={{ display: "flex", marginTop: 30 * u }}>
-          <Voice text={spec.voice} u={u} color={theme.ink} width={width - 300 * u} />
-        </div>
-      </div>
-
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 32 * u }}>
-        {spec.stats.length ? (
-          <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
-        ) : null}
-        <Lockup theme={theme} u={u} />
-      </div>
-    </Surface>
-  );
-}
-
-/** MASCOT — the character beside the number, voice line in a speech bubble. */
-function MascotLayout(ctx: Ctx) {
-  const { spec, theme, width, height, u } = ctx;
-  return (
-    <Surface {...ctx} padX={72 * u} padY={60 * u}>
-      <Layer top={0} left={0} width={width} height={height}>
-        <Halftone width={width} height={height} color="#D92D20" gap={34 * u} radius={4 * u} opacity={0.07} />
-      </Layer>
-
-      <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 12 * u }}>
-        <Pepper size={40 * u} rotate={-14} {...theme.pepper} />
-        <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
-          CAYENNE DO IT
-        </div>
-      </div>
-
-      {/* number and character share the stage, side by side */}
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", width: "100%", flex: 1, justifyContent: "center", paddingTop: 30 * u, paddingBottom: 30 * u }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 * u }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            {spec.eyebrow ? (
-              <div style={{ display: "flex", fontSize: 30 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accent, marginBottom: 8 * u }}>
-                {spec.eyebrow}
-              </div>
-            ) : null}
-            {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} max={360} /> : null}
-            {spec.heroTitle ? (
-              <div style={{ display: "flex", fontSize: 60 * u, fontWeight: 900, color: theme.hero, textAlign: "center", maxWidth: 520 * u, lineHeight: 1.06 }}>
-                {spec.heroTitle}
-              </div>
-            ) : null}
-            {spec.heroUnit ? (
-              <div style={{ display: "flex", marginTop: 10 * u }}>
-                <Unit text={spec.heroUnit} u={u} color={theme.accent} size={38} />
-              </div>
-            ) : null}
-          </div>
-          <MascotArt size={330 * u} />
-        </div>
-
-        {/* speech bubble */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginTop: 30 * u,
-            padding: `${28 * u}px ${44 * u}px`,
-            borderRadius: 40 * u,
-            background: "#FFFDF8",
-            border: `${4 * u}px solid ${theme.accent}`,
-            maxWidth: width - 180 * u,
+            fontSize: ((spec.heroTitle ?? "").length > 44 ? 82 : 104) * u,
+            fontWeight: 900,
+            lineHeight: 1.06,
+            letterSpacing: -2 * u,
+            color: theme.hero,
+            maxWidth: width - 170 * u,
           }}
         >
-          <Voice text={spec.voice} u={u} color={theme.ink} width={width - 280 * u} size={38} />
+          &ldquo;{spec.heroTitle}&rdquo;
         </div>
-
+        <div style={{ display: "flex", width: 140 * u, height: 6 * u, background: theme.accent, borderRadius: 6 * u }} />
+        {voice}
       </div>
+    );
+  }
 
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 32 * u }}>
-        {spec.stats.length ? (
-          <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
+  // The ring is the shape for a challenge; the day count sits under it.
+  if (spec.kind === "CHALLENGE") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap }}>
+        {eyebrow}
+        <Ring {...ctx} />
+        {spec.heroUnit ? <Unit text={spec.heroUnit} u={u} color={theme.accent} width={width - 190 * u} /> : null}
+        {voice}
+      </div>
+    );
+  }
+
+  // The mascot carries an achievement — it's the moment that earns the character.
+  if (spec.kind === "ACHIEVEMENT") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 20 * u }}>
+        {eyebrow}
+        <div style={{ display: "flex", alignItems: "center", gap: 20 * u }}>
+          {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
+          <MascotArt size={330 * u} />
+        </div>
+        {spec.heroUnit ? <Unit text={spec.heroUnit} u={u} color={theme.accent} width={width - 190 * u} /> : null}
+        {spec.heroTitle ? (
+          <div style={{ display: "flex", fontSize: 92 * u, fontWeight: 900, color: theme.hero, textAlign: align }}>
+            {spec.heroTitle}
+          </div>
         ) : null}
-        <Lockup theme={theme} u={u} />
+        {voice}
       </div>
-    </Surface>
+    );
+  }
+
+  // Month name as hero, ratio beneath.
+  if (spec.kind === "MONTHLY_RECAP") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 18 * u }}>
+        {eyebrow}
+        <div style={{ display: "flex", fontSize: 200 * u, fontWeight: 900, lineHeight: 0.9, letterSpacing: -6 * u, color: theme.hero }}>
+          {spec.heroTitle}
+        </div>
+        {spec.heroUnit ? <Unit text={spec.heroUnit} u={u} color={theme.accent} width={width - 190 * u} /> : null}
+        <div style={{ display: "flex", marginTop: 14 * u }}>{voice}</div>
+      </div>
+    );
+  }
+
+  // Journey: number, then the rail between two dates.
+  if (spec.kind === "JOURNEY") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 22 * u }}>
+        {eyebrow}
+        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
+        {spec.heroUnit ? <Unit text={spec.heroUnit} u={u} color={theme.accent} width={width - 190 * u} /> : null}
+        {spec.rail ? (
+          <div style={{ display: "flex", marginTop: 18 * u }}>
+            <Rail {...ctx} />
+          </div>
+        ) : null}
+        <div style={{ display: "flex", marginTop: 12 * u }}>{voice}</div>
+      </div>
+    );
+  }
+
+  // Streak and progress: the number, its unit, the line.
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: items, gap: 22 * u }}>
+      {eyebrow}
+      {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
+      {spec.heroUnit ? <Unit text={spec.heroUnit} u={u} color={theme.accent} width={width - 190 * u} /> : null}
+      <div style={{ display: "flex", marginTop: 16 * u }}>{voice}</div>
+    </div>
   );
 }
 
-/** MINIMAL — left-aligned, enormous type, one hairline, nothing else. */
-function Minimal(ctx: Ctx) {
-  const { spec, theme, width, u } = ctx;
+// ----------------------------------------------------------------- chrome --
+
+function Decor({ theme, width, height, u }: Ctx) {
+  switch (theme.decor) {
+    case "peppersCorner":
+      return (
+        <div style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex" }}>
+          <Layer top={0} left={0} width={width} height={height}>
+            <Halftone width={width} height={height} color={theme.accent} gap={32 * u} radius={3 * u} opacity={0.08} />
+          </Layer>
+          <Layer top={height * 0.14} left={-52 * u}>
+            <Pepper size={360 * u} rotate={28} {...theme.pepper} opacity={0.5} />
+          </Layer>
+          <Layer top={height * 0.62} left={width - 120 * u}>
+            <Pepper size={320 * u} rotate={-152} {...theme.pepper} opacity={0.42} />
+          </Layer>
+        </div>
+      );
+    case "fire":
+      return (
+        <div style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex" }}>
+          <Layer top={height * 0.2} left={0} width={width} height={height * 0.4}>
+            <div
+              style={{
+                display: "flex",
+                width,
+                height: height * 0.4,
+                background:
+                  "linear-gradient(180deg, rgba(217,45,32,0) 0%, rgba(241,90,36,0.32) 45%, rgba(217,45,32,0) 100%)",
+              }}
+            />
+          </Layer>
+          <Layer bottom={0} left={0} width={width} height={height * 0.28}>
+            <PowderField width={width} height={height * 0.28} color="#F15A24" count={160} opacity={0.5} seed={31} />
+          </Layer>
+          <Layer bottom={0} left={0} width={width} height={height * 0.05}>
+            <Flames width={width} height={height * 0.05} colors={["#4A1208", "#7A1F10", "#B52117", "#D9450F"]} />
+          </Layer>
+          <Layer top={-30 * u} left={width - 118 * u}>
+            <Pepper size={290 * u} rotate={-158} {...theme.pepper} opacity={0.8} />
+          </Layer>
+        </div>
+      );
+    case "harvest":
+      return (
+        <div style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex" }}>
+          <Layer bottom={0} left={0} width={width} height={height * 0.6}>
+            <PowderField width={width} height={height * 0.6} color={theme.accent} count={220} opacity={0.5} />
+          </Layer>
+          <Layer top={-38 * u} left={-56 * u}>
+            <Pepper size={300 * u} rotate={38} {...theme.pepper} />
+          </Layer>
+          <Layer top={34 * u} left={width - 150 * u}>
+            <Pepper size={250 * u} rotate={-32} {...theme.pepper} />
+          </Layer>
+        </div>
+      );
+    case "confetti":
+      return (
+        <div style={{ position: "absolute", top: 0, left: 0, width, height, display: "flex" }}>
+          <Layer top={0} left={0} width={width} height={height}>
+            <Halftone width={width} height={height} color="#D92D20" gap={36 * u} radius={4 * u} opacity={0.07} />
+          </Layer>
+          <Layer top={height * 0.08} left={-46 * u}>
+            <Pepper size={240 * u} rotate={34} {...theme.pepper} opacity={0.5} />
+          </Layer>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+/** Centred: brand mark, shape, stats, lockup. */
+function StandardChrome(ctx: Ctx) {
+  const { theme, u, width } = ctx;
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: `${62 * u}px ${80 * u}px`,
+        background: theme.background,
+        fontFamily: "Nunito",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <Decor {...ctx} />
+      <div style={{ position: "relative", display: "flex" }}>
+        <BrandMark theme={theme} u={u} />
+      </div>
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: 28 * u,
+          paddingBottom: 28 * u,
+          width: width - 160 * u,
+        }}
+      >
+        <Shape {...ctx} />
+      </div>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 36 * u }}>
+        <Stats {...ctx} />
+        <Lockup theme={theme} u={u} />
+      </div>
+    </div>
+  );
+}
+
+/** Left-aligned, editorial, one pepper. */
+function MinimalChrome(ctx: Ctx) {
+  const { theme, u, width } = ctx;
   return (
     <div
       style={{
@@ -635,74 +537,35 @@ function Minimal(ctx: Ctx) {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        padding: `${86 * u}px ${86 * u}px`,
+        padding: `${80 * u}px ${84 * u}px`,
         background: theme.background,
         fontFamily: "Nunito",
         position: "relative",
+        overflow: "hidden",
       }}
     >
-      <Layer top={70 * u} left={width - 130 * u}>
-        <Pepper size={190 * u} rotate={-18} {...theme.pepper} opacity={0.9} />
+      <Layer top={70 * u} left={width - 128 * u}>
+        <Pepper size={210 * u} rotate={-18} {...theme.pepper} />
       </Layer>
 
-      <div style={{ display: "flex", fontSize: 26 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
+      <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 900, letterSpacing: 7 * u, color: theme.inkSoft }}>
         CAYENNE DO IT
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        {spec.eyebrow ? (
-          <div style={{ display: "flex", fontSize: 30 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accent, marginBottom: 16 * u }}>
-            {spec.eyebrow}
-          </div>
-        ) : null}
-        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
-        {spec.heroTitle ? (
-          <div style={{ display: "flex", fontSize: 80 * u, fontWeight: 900, color: theme.hero, maxWidth: width - 200 * u, lineHeight: 1.04 }}>
-            {spec.heroTitle}
-          </div>
-        ) : null}
-        {spec.heroUnit ? (
-          <div style={{ display: "flex", marginTop: 12 * u, fontSize: 44 * u, fontWeight: 900, letterSpacing: 5 * u, color: theme.accent }}>
-            {spec.heroUnit}
-          </div>
-        ) : null}
-        <div style={{ display: "flex", width: width - 172 * u, height: 3 * u, background: theme.rule, margin: `${44 * u}px 0` }} />
-        <div
-          style={{
-            display: "flex",
-            fontSize: 42 * u,
-            fontWeight: 800,
-            lineHeight: 1.25,
-            color: theme.ink,
-            maxWidth: width - 220 * u,
-          }}
-        >
-          {spec.voice}
-        </div>
+      <div style={{ display: "flex", flex: 1, alignItems: "center" }}>
+        <Shape {...ctx} align="left" />
       </div>
 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", width: "100%" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 * u }}>
-          <div style={{ display: "flex", fontSize: 24 * u, fontWeight: 800, letterSpacing: 3 * u, color: theme.inkSoft }}>
-            TRACKED WITH
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 * u }}>
-            <Pepper size={46 * u} rotate={-16} {...theme.pepper} />
-            <div style={{ display: "flex", fontSize: 54 * u, fontWeight: 900, color: theme.ink, letterSpacing: -1.5 * u }}>
-              Cayenne Do It
-            </div>
-          </div>
-        </div>
-        {spec.stats.length ? (
-          <StatRun stats={spec.stats.slice(0, 2)} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
-        ) : null}
+        <Lockup theme={theme} u={u} align="left" />
+        <Stats {...ctx} />
       </div>
     </div>
   );
 }
 
-/** FACEBOOK — the voice line leads in a red band, then the number. Built to stop a thumb. */
-function Facebook(ctx: Ctx) {
+/** Banded: the line leads in red, the shape sits below, the lockup gets a bar. */
+function FacebookChrome(ctx: Ctx) {
   const { spec, theme, width, height, u } = ctx;
   return (
     <div
@@ -717,31 +580,29 @@ function Facebook(ctx: Ctx) {
         overflow: "hidden",
       }}
     >
-      {/* the hook, in a solid band across the top */}
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           width: "100%",
-          padding: `${44 * u}px ${72 * u}px ${48 * u}px`,
+          padding: `${46 * u}px ${76 * u}px ${50 * u}px`,
           background: "linear-gradient(120deg,#D92D20 0%,#F15A24 100%)",
           position: "relative",
         }}
       >
-        <Layer top={-34 * u} left={width - 120 * u}>
-          <Pepper size={190 * u} rotate={-150} body="#A3170F" shade="#7A1F10" stem="#2F6B53" opacity={0.45} />
+        <Layer top={-40 * u} left={width - 116 * u}>
+          <Pepper size={210 * u} rotate={-150} body="#A3170F" shade="#7A1F10" stem="#2F6B53" opacity={0.5} />
         </Layer>
         <div
           style={{
             display: "flex",
-            fontSize: (spec.voice.length > 58 ? 44 : 52) * u,
+            fontSize: (spec.voice.length > 52 ? 52 : 60) * u,
             fontWeight: 900,
-            lineHeight: 1.16,
+            lineHeight: 1.14,
             color: "#FFF7E8",
             textAlign: "center",
-            maxWidth: width - 190 * u,
+            maxWidth: width - 180 * u,
             position: "relative",
           }}
         >
@@ -749,7 +610,6 @@ function Facebook(ctx: Ctx) {
         </div>
       </div>
 
-      {/* the number */}
       <div
         style={{
           display: "flex",
@@ -759,66 +619,44 @@ function Facebook(ctx: Ctx) {
           flex: 1,
           width: "100%",
           position: "relative",
-          padding: `${20 * u}px ${72 * u}px`,
+          padding: `${26 * u}px ${76 * u}px`,
         }}
       >
-        <Layer bottom={0} left={0} width={width} height={height * 0.22}>
-          <PowderField width={width} height={height * 0.24} color="#F15A24" count={180} opacity={0.6} seed={19} />
+        <Layer bottom={0} left={0} width={width} height={height * 0.26}>
+          <PowderField width={width} height={height * 0.26} color="#F15A24" count={190} opacity={0.55} seed={19} />
         </Layer>
-        <Layer top={height * 0.03} left={-40 * u}>
-          <Pepper size={280 * u} rotate={32} {...theme.pepper} opacity={0.8} />
-        </Layer>
-        <Layer bottom={height * 0.02} left={width - 120 * u}>
-          <Pepper size={250 * u} rotate={-158} {...theme.pepper} opacity={0.7} />
+        <Layer top={height * 0.02} left={-44 * u}>
+          <Pepper size={280 * u} rotate={32} {...theme.pepper} opacity={0.75} />
         </Layer>
 
-        {spec.eyebrow ? (
-          <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 900, letterSpacing: 4 * u, color: theme.accent, marginBottom: 10 * u, position: "relative" }}>
-            {spec.eyebrow}
-          </div>
-        ) : null}
-        {spec.ring ? <Ring percent={spec.ring.percent} u={u} track={theme.rule} accent={theme.accent} ink={theme.ink} soft={theme.inkSoft} /> : null}
-        {spec.heroValue ? <Hero value={spec.heroValue} u={u} color={theme.hero} /> : null}
-        {spec.heroTitle ? (
-          <div style={{ display: "flex", fontSize: 72 * u, fontWeight: 900, color: theme.hero, textAlign: "center", maxWidth: width - 200 * u, lineHeight: 1.06, position: "relative" }}>
-            {spec.heroTitle}
-          </div>
-        ) : null}
-        {spec.heroUnit ? (
-          <div style={{ display: "flex", marginTop: 14 * u, position: "relative" }}>
-            <Unit text={spec.heroUnit} u={u} color={theme.accent} size={50} />
-          </div>
-        ) : null}
-        {spec.stats.length ? (
-          <div style={{ display: "flex", marginTop: 40 * u, position: "relative" }}>
-            <StatRun stats={spec.stats} u={u} ink={theme.ink} soft={theme.inkSoft} accent={theme.accent} rule={theme.rule} />
-          </div>
-        ) : null}
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 34 * u }}>
+          <Shape {...ctx} voiceShown />
+          <Stats {...ctx} />
+        </div>
       </div>
 
-      {/* the lockup, on its own footer bar so it reads at feed size */}
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6 * u,
+          gap: 8 * u,
           width: "100%",
-          padding: `${34 * u}px 0 ${38 * u}px`,
+          padding: `${36 * u}px 0 ${40 * u}px`,
           background: "rgba(255,247,232,0.06)",
           borderTop: `${3 * u}px solid rgba(255,247,232,0.16)`,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 16 * u }}>
-          <div style={{ display: "flex", fontSize: 28 * u, fontWeight: 800, letterSpacing: 2 * u, color: theme.inkSoft }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 * u }}>
+          <div style={{ display: "flex", fontSize: 32 * u, fontWeight: 800, letterSpacing: 2 * u, color: theme.inkSoft }}>
             TRACKED WITH
           </div>
-          <Pepper size={54 * u} rotate={-16} {...theme.pepper} />
-          <div style={{ display: "flex", fontSize: 58 * u, fontWeight: 900, color: theme.ink, letterSpacing: -1.5 * u }}>
+          <Pepper size={62 * u} rotate={-16} {...theme.pepper} />
+          <div style={{ display: "flex", fontSize: 66 * u, fontWeight: 900, color: theme.ink, letterSpacing: -2 * u }}>
             Cayenne Do It
           </div>
         </div>
-        <div style={{ display: "flex", fontSize: 25 * u, fontWeight: 800, letterSpacing: 5 * u, color: theme.accent }}>
+        <div style={{ display: "flex", fontSize: 30 * u, fontWeight: 800, letterSpacing: 5 * u, color: theme.accent }}>
           SMALL HABIT. BIG FIRE.
         </div>
       </div>

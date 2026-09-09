@@ -13,6 +13,7 @@ import path from "node:path";
 import { ImageResponse } from "next/og";
 
 import { buildSpec } from "@/lib/share/spec";
+import { DEFAULT_TONE } from "@/lib/share/voice";
 import { renderCard } from "@/server/share/render";
 import {
   DEFAULT_TOGGLES,
@@ -71,10 +72,12 @@ async function main() {
     theme: ThemeId,
     size: SizeId,
     toggles = DEFAULT_TOGGLES,
+    scale = 1,
   ) {
-    const { width, height } = SIZES[size];
+    const width = Math.round(SIZES[size].width * scale);
+    const height = Math.round(SIZES[size].height * scale);
     const image = new ImageResponse(
-      renderCard(buildSpec(kind, STATS, toggles), theme, { width, height }),
+      renderCard(buildSpec(kind, STATS, toggles, DEFAULT_TONE), theme, { width, height }),
       { width, height, fonts },
     );
     writeFileSync(`${OUT}/${name}.png`, Buffer.from(await image.arrayBuffer()));
@@ -107,6 +110,13 @@ async function main() {
   // Every export size, so nothing overflows on the tall ones.
   for (const size of Object.keys(SIZES) as SizeId[]) {
     jobs.push(write(`size-${size}`, "HOT_STREAK", "FACEBOOK", size));
+  }
+
+  // Thumbnails at Facebook feed width. Any text that fails to read here fails
+  // in the feed, which is the only place these actually get seen.
+  const THUMB = 350 / 1200;
+  for (const theme of THEME_IDS) {
+    jobs.push(write(`thumb-${theme}`, "HOT_STREAK", theme, "FACEBOOK", DEFAULT_TOGGLES, THUMB));
   }
 
   await Promise.all(jobs);
