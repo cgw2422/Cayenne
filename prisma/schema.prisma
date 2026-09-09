@@ -1,0 +1,458 @@
+// Cayenne Do It — relational schema.
+// Every domain concept gets real columns, relations and indexes; no JSON blobs.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- identity --
+
+enum Entitlement {
+  FREE
+  LIFETIME
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String?
+  displayName  String
+  entitlement  Entitlement @default(FREE)
+  entitledAt   DateTime?
+  onboardedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  profile       Profile?
+  accounts      Account[]
+  sessions      Session[]
+  entries       CayenneEntry[]
+  userGoals     UserGoal[]
+  measurements  Measurement[]
+  journal       JournalEntry[]
+  challenges    UserChallenge[]
+  achievements  UserAchievement[]
+  recipes       Recipe[]
+  favorites     RecipeFavorite[]
+  impressions   QuoteImpression[]
+  notifications NotificationPreference?
+  pushSubs      PushSubscription[]
+  shareCards    ShareCard[]
+}
+
+/// Present from day one so Google/Apple sign-in is a row, not a migration.
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum Method {
+  WATER
+  TEA
+  FOOD
+  SHOT
+  CAPSULE
+  OTHER
+}
+
+enum Unit {
+  TSP
+  MG
+  G
+  CAPSULE
+}
+
+enum UnitSystem {
+  IMPERIAL
+  METRIC
+}
+
+model Profile {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  avatarHue     Int        @default(8)
+  unitSystem    UnitSystem @default(IMPERIAL)
+  defaultMethod Method?
+  defaultAmount Decimal?   @db.Decimal(8, 3)
+  defaultUnit   Unit       @default(TSP)
+  startedOn     DateTime   @db.Date
+  timezone      String     @default("UTC")
+
+  // Denormalised streak cache, recomputed on every entry write.
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  totalDays       Int       @default(0)
+  lastLoggedOn    DateTime? @db.Date
+  streakUpdatedAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------- goals --
+
+/// Catalog of selectable personal goals. These are the *user's* goals — the app
+/// never claims cayenne achieves them.
+model Goal {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  label     String
+  icon      String
+  sortOrder Int     @default(0)
+  isSystem  Boolean @default(true)
+
+  userGoals UserGoal[]
+}
+
+model UserGoal {
+  id        String   @id @default(cuid())
+  userId    String
+  goalId    String
+  createdAt DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal       Goal        @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  entryGoals EntryGoal[]
+
+  @@unique([userId, goalId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------- logging --
+
+model CayenneEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  takenAt   DateTime
+  /// Local calendar day of `takenAt`, used for streaks and calendar marking.
+  takenOn   DateTime @db.Date
+  method    Method
+  amount    Decimal  @db.Decimal(8, 3)
+  unit      Unit     @default(TSP)
+  /// 1 Terrible … 5 Great. Optional.
+  mood      Int?
+  notes     String?  @db.VarChar(2000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals EntryGoal[]
+
+  @@index([userId, takenOn])
+  @@index([userId, takenAt])
+}
+
+/// Why the user took it — links an entry to the goals they picked at onboarding.
+model EntryGoal {
+  id         String @id @default(cuid())
+  entryId    String
+  userGoalId String
+
+  entry    CayenneEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userGoal UserGoal     @relation(fields: [userGoalId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, userGoalId])
+  @@index([userGoalId])
+}
+
+// ------------------------------------------------------ optional body data --
+
+enum MeasurementKind {
+  WEIGHT
+  WAIST
+  BLOOD_PRESSURE
+  BLOOD_GLUCOSE
+  CUSTOM
+}
+
+/// Private journal-style tracking. Never public, never attributed to cayenne.
+model Measurement {
+  id          String          @id @default(cuid())
+  userId      String
+  kind        MeasurementKind
+  customLabel String?
+  value       Decimal         @db.Decimal(10, 3)
+  /// Diastolic for blood pressure; unused otherwise.
+  secondary   Decimal?        @db.Decimal(10, 3)
+  unit        String
+  recordedOn  DateTime        @db.Date
+  note        String?         @db.VarChar(500)
+  createdAt   DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, recordedOn])
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  prompt    String?
+  body      String   @db.VarChar(5000)
+  mood      Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// -------------------------------------------------------------- motivation --
+
+enum QuoteCategory {
+  DAILY
+  STREAK
+  COMEBACK
+  MILESTONE
+  FUNNY
+  ENCOURAGEMENT
+}
+
+model Quote {
+  id       String        @id @default(cuid())
+  text     String        @unique @db.VarChar(240)
+  category QuoteCategory
+
+  impressions QuoteImpression[]
+
+  @@index([category])
+}
+
+/// One row per user per day keeps the daily quote stable and non-repeating.
+model QuoteImpression {
+  id      String   @id @default(cuid())
+  userId  String
+  quoteId String
+  shownOn DateTime @db.Date
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shownOn])
+  @@index([userId, quoteId])
+}
+
+enum AchievementKind {
+  STREAK
+  TOTAL_DAYS
+  METHOD_VARIETY
+  EARLY_BIRD
+  MONTH_DAYS
+  RECIPES_SAVED
+  FIRST_ENTRY
+}
+
+model Achievement {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  title       String
+  description String
+  kind        AchievementKind
+  threshold   Int
+  tier        Int             @default(1)
+  sortOrder   Int             @default(0)
+
+  unlocks UserAchievement[]
+}
+
+model UserAchievement {
+  id            String    @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime  @default(now())
+  /// Set once the celebration has been shown, so we only cheer a badge once.
+  seenAt        DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+model Challenge {
+  id           String  @id @default(cuid())
+  slug         String  @unique
+  title        String
+  description  String
+  durationDays Int
+  sortOrder    Int     @default(0)
+  isPremium    Boolean @default(false)
+
+  participants UserChallenge[]
+}
+
+model UserChallenge {
+  id          String          @id @default(cuid())
+  userId      String
+  challengeId String
+  status      ChallengeStatus @default(ACTIVE)
+  startedOn   DateTime        @db.Date
+  completedAt DateTime?
+  createdAt   DateTime        @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ----------------------------------------------------------------- recipes --
+
+enum RecipeCategory {
+  DRINKS
+  MEALS
+  SNACKS
+  QUICK_MIXES
+}
+
+model Recipe {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  title         String
+  summary       String         @db.VarChar(400)
+  category      RecipeCategory
+  /// Free-text so "a pinch" and "1/4 tsp" both read naturally.
+  cayenneAmount String
+  minutes       Int
+  difficulty    String         @default("Easy")
+  imageUrl      String?
+  isSystem      Boolean        @default(true)
+  authorId      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  author      User?              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  favorites   RecipeFavorite[]
+
+  @@index([category])
+  @@index([authorId])
+}
+
+model RecipeIngredient {
+  id        String @id @default(cuid())
+  recipeId  String
+  text      String
+  sortOrder Int    @default(0)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+model RecipeStep {
+  id        String @id @default(cuid())
+  recipeId  String
+  text      String
+  sortOrder Int    @default(0)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+}
+
+model RecipeFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  recipeId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipeId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- comms/PWA --
+
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  dailyReminder  Boolean  @default(false)
+  /// Minutes past local midnight, so it survives timezone changes cleanly.
+  reminderMinute Int      @default(480)
+  streakWarning  Boolean  @default(true)
+  milestoneAlert Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.VarChar(500)
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum ShareVariant {
+  STREAK
+  MILESTONE
+  CHALLENGE
+  TOTAL
+}
+
+/// A share card is an explicit, opt-in snapshot. Only the fields copied here can
+/// ever be rendered publicly — journal, measurements and notes are not among them.
+model ShareCard {
+  id        String       @id @default(cuid())
+  userId    String
+  token     String       @unique
+  variant   ShareVariant
+  headline  String
+  subline   String?
+  streak    Int
+  totalDays Int
+  quoteText String?
+  goalLabel String?
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
