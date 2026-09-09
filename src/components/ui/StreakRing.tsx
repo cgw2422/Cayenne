@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Flame } from "@/components/ui/Flame";
-import { ringProgress } from "@/lib/streak";
+import { MILESTONE_TITLES, ringProgress, type Milestone } from "@/lib/streak";
 
 const SIZE = 220;
 const STROKE = 14;
@@ -52,6 +52,7 @@ export function StreakRing({
   }, [streak]);
 
   const cold = streak === 0;
+  const toGo = nextMilestone ? nextMilestone - streak : 0;
 
   return (
     <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
@@ -108,7 +109,7 @@ export function StreakRing({
           {count}
         </span>
         <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-charcoal-500">
-          {streak === 1 ? "Day streak" : "Day streak"}
+          Day streak
         </span>
         {loggedToday ? (
           <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-pepper-900 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cream-100">
@@ -116,7 +117,8 @@ export function StreakRing({
           </span>
         ) : nextMilestone ? (
           <span className="mt-1.5 text-[11px] font-semibold text-charcoal-500">
-            {nextMilestone - streak} to {nextMilestone} days
+            {toGo} {toGo === 1 ? "day" : "days"} to{" "}
+            {MILESTONE_TITLES[nextMilestone as Milestone] ?? `${nextMilestone} days`}
           </span>
         ) : null}
       </div>
