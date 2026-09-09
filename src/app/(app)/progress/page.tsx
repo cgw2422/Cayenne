@@ -70,8 +70,14 @@ export default async function ProgressPage({
 
   return (
     <>
-      <header className="px-5 pb-3 pt-6">
+      <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-6">
         <h1 className="text-2xl font-extrabold text-charcoal-900">My Progress</h1>
+        <Link
+          href="/share"
+          className="fire-gradient shrink-0 rounded-full px-4 py-2.5 text-xs font-extrabold text-white shadow-lift"
+        >
+          Share my progress
+        </Link>
       </header>
 
       <nav className="no-scrollbar flex gap-2 overflow-x-auto px-5 pb-4" aria-label="Progress views">

@@ -1,71 +1,38 @@
 import Link from "next/link";
 
-import { ShareStudio } from "@/components/ShareStudio";
+import { ShareStudio } from "@/components/share/ShareStudio";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
-import { streakFor, userToday } from "@/server/habit";
-import { MILESTONE_TITLES, type Milestone } from "@/lib/streak";
-import { publishShareCard } from "./actions";
+import { buildCardStats } from "@/server/share/stats";
+import { defaultThemeFor } from "@/lib/share/themes";
+import { SHARE_KINDS, type ShareKind } from "@/lib/share/types";
+import { publishShareCard, quoteChoices, trackShareEvent } from "./actions";
 
-export const metadata = { title: "Share your progress" };
+export const metadata = { title: "Share Studio" };
 export const dynamic = "force-dynamic";
 
-export default async function SharePage() {
+export default async function SharePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string; achievement?: string }>;
+}) {
+  const { kind: rawKind, achievement } = await searchParams;
   const user = await requireUser();
-  const today = userToday(user);
-  const summary = await streakFor(user);
 
-  const [impression, goal, challenge] = await Promise.all([
-    prisma.quoteImpression.findFirst({
-      where: { userId: user.id },
-      orderBy: { shownOn: "desc" },
-      include: { quote: true },
-    }),
-    prisma.userGoal.findFirst({
-      where: { userId: user.id },
-      include: { goal: true },
-      orderBy: { goal: { sortOrder: "asc" } },
-    }),
-    prisma.userChallenge.findFirst({
-      where: { userId: user.id, status: "ACTIVE" },
-      include: { challenge: true },
-      orderBy: { createdAt: "desc" },
-    }),
+  const initialKind = (SHARE_KINDS as readonly string[]).includes(rawKind ?? "")
+    ? (rawKind as ShareKind)
+    : null;
+
+  const [stats, quotes, hasChallenge, achievementCount] = await Promise.all([
+    buildCardStats(user, { achievementId: achievement }),
+    quoteChoices(),
+    prisma.userChallenge.count({ where: { userId: user.id, status: "ACTIVE" } }),
+    prisma.userAchievement.count({ where: { userId: user.id } }),
   ]);
-
-  const milestoneTitle = MILESTONE_TITLES[summary.current as Milestone];
-
-  const options = [
-    {
-      key: "STREAK",
-      label: "Streak",
-      headline: `${summary.current} DAY HOT STREAK`,
-      subline: milestoneTitle ?? "Small habit. Big fire.",
-      available: true,
-    },
-    {
-      key: "TOTAL",
-      label: "Total days",
-      headline: `${summary.totalDays} DAYS OF KEEPING IT SPICY`,
-      subline: "Small habit. Big fire.",
-      available: summary.totalDays > 0,
-    },
-    {
-      key: "CHALLENGE",
-      label: "Challenge",
-      headline: (challenge?.challenge.title ?? "CHALLENGE").toUpperCase(),
-      subline: challenge
-        ? `Day ${Math.min(summary.totalDays, challenge.challenge.durationDays)} of ${
-            challenge.challenge.durationDays
-          }`
-        : "Start one first",
-      available: Boolean(challenge),
-    },
-  ];
 
   return (
     <>
-      <header className="flex items-center gap-3 px-5 pb-4 pt-5">
+      <header className="flex items-center gap-3 px-5 pb-2 pt-5">
         <Link
           href="/home"
           aria-label="Back to home"
@@ -81,20 +48,24 @@ export default async function SharePage() {
             />
           </svg>
         </Link>
-        <h1 className="text-xl font-extrabold text-charcoal-900">Share your progress</h1>
+        <h1 className="text-xl font-extrabold text-charcoal-900">Share Studio</h1>
       </header>
 
       <ShareStudio
-        options={options}
-        streak={summary.current}
-        totalDays={summary.totalDays}
-        quote={
-          impression && impression.shownOn.toISOString().slice(0, 10) === today
-            ? impression.quote.text
-            : (impression?.quote.text ?? null)
-        }
-        goalLabel={goal?.goal.label ?? null}
+        initialKind={initialKind}
+        initialTheme={defaultThemeFor(initialKind ?? "HOT_STREAK")}
+        achievementId={achievement ?? null}
+        todaysQuote={stats.quote}
+        quotes={quotes}
+        available={{
+          challenge: hasChallenge > 0,
+          achievement: achievementCount > 0,
+          quote: Boolean(stats.quote),
+          amount: Boolean(stats.amountLabel),
+          method: Boolean(stats.methodLabel),
+        }}
         onPublish={publishShareCard}
+        onTrack={trackShareEvent}
       />
     </>
   );

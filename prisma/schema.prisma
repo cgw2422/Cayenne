@@ -47,6 +47,7 @@ model User {
   reminders     ReminderTime[]
   pushSubs      PushSubscription[]
   shareCards    ShareCard[]
+  shareEvents   ShareEvent[]
 }
 
 /// Present from day one so Google/Apple sign-in is a row, not a migration.
@@ -450,29 +451,114 @@ model PushSubscription {
   @@index([userId])
 }
 
-enum ShareVariant {
-  STREAK
-  MILESTONE
+enum ShareKind {
+  HOT_STREAK
+  JOURNEY
+  ACHIEVEMENT
   CHALLENGE
-  TOTAL
+  PROGRESS
+  PEP_TALK
+  MONTHLY_RECAP
 }
 
-/// A share card is an explicit, opt-in snapshot. Only the fields copied here can
-/// ever be rendered publicly — journal, measurements and notes are not among them.
+enum ShareTheme {
+  SIGNATURE
+  ON_FIRE
+  PEPPER_COUNTRY
+  MINIMAL
+  CELEBRATION
+  SOCIAL
+}
+
+enum ShareSize {
+  FACEBOOK
+  INSTAGRAM
+  STORY
+  SQUARE
+}
+
+/// A published card: an explicit, opt-in snapshot of the user's own numbers.
+///
+/// Every column here is public-safe. There is deliberately no column for weight,
+/// blood pressure, glucose, body measurements, moods or journal text, so no
+/// setting, query parameter or future bug can put private data on a card — the
+/// renderer has nowhere to read it from.
 model ShareCard {
-  id        String       @id @default(cuid())
-  userId    String
-  token     String       @unique
-  variant   ShareVariant
-  headline  String
-  subline   String?
-  streak    Int
-  totalDays Int
-  quoteText String?
-  goalLabel String?
-  createdAt DateTime     @default(now())
+  id     String     @id @default(cuid())
+  userId String
+  token  String     @unique
+  kind   ShareKind
+  theme  ShareTheme
+  size   ShareSize
+
+  streak         Int
+  longestStreak  Int
+  totalDays      Int
+  consistency    Int
+  daysSinceStart Int
+
+  startedOnLabel    String?
+  todayLabel        String?
+  amountLabel       String?
+  methodLabel       String?
+  methodIcon        String?
+  achievementTitle  String?
+  achievementBlurb  String?
+  achievementValue  Int?
+  challengeTitle    String?
+  challengeDay      Int?
+  challengeTotal    Int?
+  monthLabel        String?
+  monthDaysLogged   Int?
+  monthDaysTotal    Int?
+  monthAchievements Int?
+  quoteText         String? @db.VarChar(240)
+
+  /// The toggle state at publish time, so the card re-renders identically.
+  showStreak        Boolean @default(true)
+  showTotalDays     Boolean @default(true)
+  showLongestStreak Boolean @default(true)
+  showConsistency   Boolean @default(false)
+  showChallenge     Boolean @default(false)
+  showAmount        Boolean @default(false)
+  showMethod        Boolean @default(false)
+  showStartDate     Boolean @default(false)
+  showAchievement   Boolean @default(false)
+  showQuote         Boolean @default(true)
+
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+enum ShareEventType {
+  STUDIO_OPENED
+  TYPE_SELECTED
+  TEMPLATE_SELECTED
+  IMAGE_GENERATED
+  IMAGE_SAVED
+  NATIVE_SHARE_CLICKED
+  CAPTION_COPIED
+}
+
+/// Which templates and moments actually drive sharing.
+///
+/// Records only what happened inside the app. The destination app or site is
+/// never captured — the Web Share API does not report it and we do not ask.
+model ShareEvent {
+  id           String         @id @default(cuid())
+  userId       String
+  event        ShareEventType
+  kind         ShareKind?
+  theme        ShareTheme?
+  size         ShareSize?
+  captionStyle String?
+  createdAt    DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
 }

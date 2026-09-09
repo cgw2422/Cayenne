@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Mascot } from "@/components/ui/Mascot";
 import { BRAND } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
+import { specFromCard } from "@/server/share/card";
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -13,22 +14,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const card = await prisma.shareCard.findUnique({ where: { token } });
   if (!card) return { title: "Card not found" };
 
-  const image = `/api/share/${token}/image`;
-  const title = `${card.headline} · ${BRAND.name}`;
+  const spec = specFromCard(card);
+  const summary =
+    spec.heroValue && spec.heroUnit
+      ? `${spec.heroValue} ${spec.heroUnit.toLowerCase()}`
+      : (spec.heroTitle ?? spec.eyebrow ?? BRAND.tagline);
+  const image = `/api/share/${token}/image?size=FACEBOOK`;
+  const title = `${summary} · ${BRAND.name}`;
 
   return {
     title,
-    description: card.subline ?? BRAND.tagline,
+    description: spec.subline ?? BRAND.tagline,
     openGraph: {
       title,
-      description: card.subline ?? BRAND.tagline,
-      images: [{ url: image, width: 1200, height: 630 }],
+      description: spec.subline ?? BRAND.tagline,
+      images: [{ url: image, width: 1200, height: 1500 }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: card.subline ?? BRAND.tagline,
+      description: spec.subline ?? BRAND.tagline,
       images: [image],
     },
   };
@@ -43,14 +49,21 @@ export default async function SharedCardPage({ params }: Props) {
   const card = await prisma.shareCard.findUnique({ where: { token } });
   if (!card) notFound();
 
+  const spec = specFromCard(card);
+  const alt =
+    spec.heroValue && spec.heroUnit
+      ? `${spec.heroValue} ${spec.heroUnit.toLowerCase()}`
+      : (spec.heroTitle ?? BRAND.tagline);
+  const { width, height } = { width: 1080, height: 1350 };
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-5 py-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`/api/share/${token}/image?format=square`}
-        alt={`${card.headline}. ${card.subline ?? ""}`}
-        width={1080}
-        height={1080}
+        src={`/api/share/${token}/image?size=INSTAGRAM`}
+        alt={`${alt}. ${spec.subline ?? ""}`}
+        width={width}
+        height={height}
         className="w-full rounded-[1.75rem] shadow-lift"
       />
 

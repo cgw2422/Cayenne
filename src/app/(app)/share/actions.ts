@@ -2,84 +2,149 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/server/auth";
-import { createShareCard, shareUrl, type ShareDraft } from "@/server/share";
-import { streakFor } from "@/server/habit";
+import { buildCardStats } from "@/server/share/stats";
+import { imageUrl, publishCard, shareUrl } from "@/server/share/publish";
+import { captionsFor, type CaptionStyle } from "@/lib/share/captions";
+import {
+  DEFAULT_TOGGLES,
+  SHARE_KINDS,
+  SIZES,
+  THEME_IDS,
+  type ShareKind,
+  type ShareToggles,
+  type SizeId,
+  type ThemeId,
+} from "@/lib/share/types";
+import type { ShareEventType } from "@prisma/client";
+
+export type PublishInput = {
+  kind: string;
+  theme: string;
+  size: string;
+  toggles: Partial<ShareToggles>;
+  /** undefined keeps today's quote, null removes it, a string overrides it. */
+  quote?: string | null;
+  achievementId?: string | null;
+};
 
 export type PublishResult =
-  | { ok: true; token: string; url: string; imageUrl: string }
+  | {
+      ok: true;
+      token: string;
+      url: string;
+      imageUrl: string;
+      captions: Record<CaptionStyle, string>;
+    }
   | { ok: false; message: string };
 
 /**
- * Publishes a card. Every value is re-derived server-side from the user's own
- * record, so a tampered client can't inflate a streak or attach someone's data.
+ * Publishes a card. Selections come from the client; every number is re-derived
+ * server-side from the user's own records, so nothing displayed can be forged.
  */
-export async function publishShareCard(input: {
-  variant: string;
-  includeQuote: boolean;
-  includeGoal: boolean;
-}): Promise<PublishResult> {
+export async function publishShareCard(input: PublishInput): Promise<PublishResult> {
   const user = await requireUser();
-  const summary = await streakFor(user);
 
-  const variant = ["STREAK", "MILESTONE", "CHALLENGE", "TOTAL"].includes(input.variant)
-    ? (input.variant as ShareDraft["variant"])
-    : "STREAK";
+  const kind = (SHARE_KINDS as readonly string[]).includes(input.kind)
+    ? (input.kind as ShareKind)
+    : "HOT_STREAK";
+  const theme = (THEME_IDS as readonly string[]).includes(input.theme)
+    ? (input.theme as ThemeId)
+    : "SIGNATURE";
+  const size = Object.keys(SIZES).includes(input.size)
+    ? (input.size as SizeId)
+    : "FACEBOOK";
 
-  const [quote, goal, challenge] = await Promise.all([
-    input.includeQuote
-      ? prisma.quoteImpression.findFirst({
-          where: { userId: user.id },
-          orderBy: { shownOn: "desc" },
-          include: { quote: true },
-        })
-      : null,
-    input.includeGoal
-      ? prisma.userGoal.findFirst({
-          where: { userId: user.id },
-          include: { goal: true },
-          orderBy: { goal: { sortOrder: "asc" } },
-        })
-      : null,
-    variant === "CHALLENGE"
-      ? prisma.userChallenge.findFirst({
-          where: { userId: user.id, status: "ACTIVE" },
-          include: { challenge: true },
-          orderBy: { createdAt: "desc" },
-        })
-      : null,
-  ]);
+  const toggles: ShareToggles = { ...DEFAULT_TOGGLES, ...input.toggles };
 
-  let headline: string;
-  let subline: string | null;
-
-  if (variant === "CHALLENGE" && challenge) {
-    headline = challenge.challenge.title.toUpperCase();
-    subline = `Day ${Math.min(summary.totalDays, challenge.challenge.durationDays)} of ${
-      challenge.challenge.durationDays
-    }`;
-  } else if (variant === "TOTAL") {
-    headline = `${summary.totalDays} DAYS OF KEEPING IT SPICY`;
-    subline = "Small habit. Big fire.";
-  } else {
-    headline = `${summary.current} DAY HOT STREAK`;
-    subline = summary.current > 0 ? "Small habit. Big fire." : "Starting today.";
-  }
-
-  const card = await createShareCard(user.id, {
-    variant,
-    headline,
-    subline,
-    streak: summary.current,
-    totalDays: summary.totalDays,
-    quoteText: quote?.quote.text ?? null,
-    goalLabel: goal?.goal.label ?? null,
+  const stats = await buildCardStats(user, {
+    achievementId: input.achievementId ?? undefined,
+    quoteOverride: input.quote,
   });
 
-  const url = shareUrl(card.token);
+  const card = await publishCard({ userId: user.id, kind, theme, size, stats, toggles });
+
+  await record(user.id, "IMAGE_GENERATED", { kind, theme, size });
+
   return {
     ok: true,
     token: card.token,
-    url,
-    imageUrl: `/api/share/${card.token}/image?format=square`,
+    url: shareUrl(card.token),
+    imageUrl: imageUrl(card.token, size),
+    captions: captionsFor(kind, stats),
   };
+}
+
+/**
+ * Records what happened inside the app. Deliberately never captures where an
+ * image ended up — the Web Share API doesn't report it and we don't ask.
+ */
+export async function trackShareEvent(input: {
+  event: string;
+  kind?: string | null;
+  theme?: string | null;
+  size?: string | null;
+  captionStyle?: string | null;
+}): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+
+  const allowed: ShareEventType[] = [
+    "STUDIO_OPENED",
+    "TYPE_SELECTED",
+    "TEMPLATE_SELECTED",
+    "IMAGE_GENERATED",
+    "IMAGE_SAVED",
+    "NATIVE_SHARE_CLICKED",
+    "CAPTION_COPIED",
+  ];
+  if (!allowed.includes(input.event as ShareEventType)) return { ok: false };
+
+  await record(user.id, input.event as ShareEventType, {
+    kind: input.kind,
+    theme: input.theme,
+    size: input.size,
+    captionStyle: input.captionStyle,
+  });
+  return { ok: true };
+}
+
+async function record(
+  userId: string,
+  event: ShareEventType,
+  detail: {
+    kind?: string | null;
+    theme?: string | null;
+    size?: string | null;
+    captionStyle?: string | null;
+  },
+) {
+  // Analytics must never break a share, so failures are swallowed.
+  await prisma.shareEvent
+    .create({
+      data: {
+        userId,
+        event,
+        kind: (SHARE_KINDS as readonly string[]).includes(detail.kind ?? "")
+          ? (detail.kind as ShareKind)
+          : null,
+        theme: (THEME_IDS as readonly string[]).includes(detail.theme ?? "")
+          ? (detail.theme as ThemeId)
+          : null,
+        size: Object.keys(SIZES).includes(detail.size ?? "")
+          ? (detail.size as SizeId)
+          : null,
+        captionStyle: detail.captionStyle?.slice(0, 20) ?? null,
+      },
+    })
+    .catch(() => undefined);
+}
+
+/** Quotes the user can pick from, for the "choose another quote" option. */
+export async function quoteChoices() {
+  const quotes = await prisma.quote.findMany({
+    where: { category: { in: ["DAILY", "STREAK", "ENCOURAGEMENT", "MILESTONE", "FUNNY"] } },
+    select: { id: true, text: true },
+    orderBy: { text: "asc" },
+    take: 60,
+  });
+  return quotes;
 }

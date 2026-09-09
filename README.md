@@ -45,6 +45,7 @@ Generate a real secret with `openssl rand -base64 48`.
 | `npm run dev` | Development server |
 | `npm run build` / `start` | Production build and server |
 | `npm test` | Streak-logic unit tests (`node:test`) |
+| `npm run share:samples` | Render sample share cards to disk for design work |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:migrate` / `db:push` / `db:seed` / `db:studio` | Prisma |
 
@@ -64,7 +65,7 @@ src/
                    goals, settings, privacy, unlock, about
       share/       share-card studio
     s/[token]/     public share landing page (Open Graph)
-    api/           share image (PNG), data export
+    api/           share preview + published card PNGs, data export
   components/      UI, charts, mascot, forms
   lib/             dates, streak maths, brand, entitlements, validation
   server/          auth, habit domain, quotes, progress, share (server-only)
@@ -88,12 +89,27 @@ gates every action and posted ids are re-checked against ownership.
 land on the same field, so no provider logic leaks into feature code. The
 current unlock button is a stand-in for checkout.
 
-**Share cards can't leak private data by construction.** A `ShareCard` row stores
-only a headline, subline, streak count, day total, an optional quote and an
-optional goal *label*. Journal entries, notes, moods and measurements are not
-reachable from the renderer, so there is no setting or bug that can put them on a
-card. Cards render as PNGs via `next/og` at both 1080×1080 (feed post) and
-1200×630 (link preview), with the public `/s/[token]` page carrying the OG tags.
+**The Share Studio is the acquisition channel, not a utility.** Seven card types
+(streak, journey, achievement, challenge, progress, pep talk, monthly recap)
+across six designed themes and four export sizes, rendered server-side as PNG at
+full resolution. Branding sits at running-app weight — a wordmark or a "Tracked
+with Cayenne Do It" line — so the accomplishment stays the hero and the app is
+something a viewer asks about rather than something the image advertises.
+
+**The preview *is* the export.** The studio previews by rendering the real card
+at half scale through the same code path the export uses, so the two cannot
+drift. A test asserts the full-scale preview is byte-identical to the published
+PNG, and that the half-scale preview matches the export's layout — that second
+check caught a bug where scaled previews were laid out at full size inside a
+smaller canvas.
+
+**Share cards can't leak private data by construction.** A `ShareCard` row has
+columns for streaks, day totals, labels and an optional quote — and no column for
+weight, blood pressure, glucose, measurements, moods or journal text. The
+renderer reads only that row, so private data cannot reach a card through a
+toggle, a crafted query string, or a future bug. Card numbers are always
+re-derived server-side from the signed-in user's own records, never taken from
+the client.
 
 **Doses are a target, not a rule.** A user says how many times a day they take
 cayenne (up to six) and gets a reminder for each, stored as `ReminderTime` rows
@@ -125,8 +141,9 @@ blobs:
 - **Motivation** — `Quote`, `QuoteImpression`, `Achievement`,
   `UserAchievement`, `Challenge`, `UserChallenge`
 - **Content** — `Recipe`, `RecipeIngredient`, `RecipeStep`, `RecipeFavorite`
-- **Plumbing** — `NotificationPreference`, `ReminderTime`, `PushSubscription`,
-  `ShareCard`
+- **Sharing** — `ShareCard` (public-safe snapshot), `ShareEvent` (which
+  templates and moments drive sharing; never where an image was sent)
+- **Plumbing** — `NotificationPreference`, `ReminderTime`, `PushSubscription`
 
 Everything cascades from `User`, so account deletion is a single statement.
 

@@ -12,6 +12,8 @@ export type CelebrationPayload = {
   subline: string;
   badges?: { title: string; description: string }[];
   shareHref?: string;
+  /** Copy for the share button, e.g. "Share my 30 days". */
+  shareLabel?: string;
 };
 
 const CONFETTI = Array.from({ length: 26 }, (_, i) => {
@@ -121,11 +123,11 @@ export function Celebration({
               href={payload.shareHref}
               className="fire-gradient inline-flex h-12 items-center justify-center rounded-2xl font-extrabold text-white shadow-lift"
             >
-              Share this
+              {payload.shareLabel ?? "Share this"}
             </a>
           ) : null}
           <Button variant="secondary" size="md" full onClick={onDismiss}>
-            Keep going
+            {payload.shareHref ? "Not now" : "Keep going"}
           </Button>
         </div>
       </div>

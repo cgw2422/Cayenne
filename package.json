@@ -13,7 +13,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "test": "tsx --test src/lib/*.test.ts",
-    "start:only": "next start"
+    "start:only": "next start",
+    "share:samples": "tsx scripts/share-samples.tsx"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

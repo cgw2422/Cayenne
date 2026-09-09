@@ -96,13 +96,27 @@ export function LogForm({
         return;
       }
 
-      const large = Boolean(result.milestone) || Boolean(result.badges?.length);
+      const badge = result.badges?.[0];
+      const large = Boolean(result.milestone) || Boolean(badge);
+
+      // A milestone shares as a streak card; a badge shares as an achievement.
+      const shareHref = result.milestone
+        ? "/share?kind=HOT_STREAK"
+        : badge
+          ? "/share?kind=ACHIEVEMENT"
+          : undefined;
+
       setCelebration({
         size: large ? "large" : "small",
         headline: result.headline ?? "Logged.",
         subline: result.subline ?? "Keep the heat going.",
         badges: result.badges,
-        shareHref: large ? "/share" : undefined,
+        shareHref: large ? shareHref : undefined,
+        shareLabel: result.milestone
+          ? `Share my ${result.milestone} days`
+          : badge
+            ? `Share ${badge.title}`
+            : undefined,
       });
 
       if (!large) {

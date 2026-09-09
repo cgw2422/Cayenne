@@ -109,10 +109,10 @@ export default async function HomePage({
                   : "Keep the fire going."}
           </p>
 
-          <div className="mt-5">
+          <div className="mt-5 grid gap-2.5">
             {doses.complete ? (
               <ButtonLink href="/share" variant="secondary" size="lg" full>
-                Share your progress
+                Share my progress
               </ButtonLink>
             ) : (
               <ButtonLink href="/log" size="lg" full>
@@ -124,6 +124,12 @@ export default async function HomePage({
                     : "Log today's cayenne"}
               </ButtonLink>
             )}
+
+            {!doses.complete && summary.totalDays > 0 ? (
+              <ButtonLink href="/share" variant="ghost" size="md" full>
+                Share my progress
+              </ButtonLink>
+            ) : null}
           </div>
         </div>
       </section>
