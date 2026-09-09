@@ -31,15 +31,16 @@ export async function quoteOfTheDay(
   });
   const recentIds = recent.map((r) => r.quoteId);
 
+  // Retired quotes keep their impression history but are never picked again.
   const pool = await prisma.quote.findMany({
-    where: { category: { in: categories }, id: { notIn: recentIds } },
+    where: { isActive: true, category: { in: categories }, id: { notIn: recentIds } },
     select: { id: true },
   });
 
   const fallback = pool.length
     ? pool
     : await prisma.quote.findMany({
-        where: { category: { in: categories } },
+        where: { isActive: true, category: { in: categories } },
         select: { id: true },
       });
 
@@ -74,7 +75,7 @@ export function categoriesForState(streak: number, brokeStreak: boolean): QuoteC
 
 export async function randomQuote(categories: QuoteCategory[]) {
   const pool = await prisma.quote.findMany({
-    where: { category: { in: categories } },
+    where: { isActive: true, category: { in: categories } },
     select: { id: true, text: true },
   });
   if (!pool.length) return null;

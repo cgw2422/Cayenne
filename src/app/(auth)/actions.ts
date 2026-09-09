@@ -83,6 +83,15 @@ export async function signIn(
   if (!user?.passwordHash) return invalid;
   if (!(await verifyPassword(parsed.data.password, user.passwordHash))) return invalid;
 
+  // A disabled account is told plainly, and only after the password checks out
+  // — the generic message above still covers whether the address exists.
+  if (user.disabledAt) {
+    return {
+      ok: false,
+      errors: { form: "This account has been disabled. Get in touch if that's wrong." },
+    };
+  }
+
   const ua = (await headers()).get("user-agent");
   await createSession(user.id, ua);
   redirect(user.onboardedAt ? "/home" : "/welcome");

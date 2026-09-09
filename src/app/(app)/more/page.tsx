@@ -22,6 +22,7 @@ const TRACK = [
 const SETTINGS = [
   { href: "/more/goals", icon: "🎯", label: "Personal goals" },
   { href: "/more/settings", icon: "⚙️", label: "Settings & reminders" },
+  { href: "/more/feedback", icon: "💬", label: "Send feedback" },
   { href: "/more/privacy", icon: "🔒", label: "Privacy & your data" },
   { href: "/more/about", icon: "ℹ️", label: "About & disclaimer" },
 ];

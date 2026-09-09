@@ -17,7 +17,10 @@ export default async function ChallengesPage() {
   const unlocked = can(user.entitlement, FEATURES.ALL_CHALLENGES);
 
   const [challenges, mine] = await Promise.all([
-    prisma.challenge.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.challenge.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }),
     prisma.userChallenge.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },

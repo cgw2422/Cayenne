@@ -12,10 +12,11 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "test": "tsx --test src/lib/*.test.ts src/lib/share/*.test.ts",
+    "test": "tsx --test src/lib/*.test.ts src/lib/share/*.test.ts src/server/**/*.test.ts",
     "start:only": "next start",
     "share:samples": "tsx scripts/share-samples.tsx",
-    "grant": "tsx scripts/grant.ts"
+    "grant": "tsx scripts/grant.ts",
+    "admin": "tsx scripts/admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

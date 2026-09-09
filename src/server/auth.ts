@@ -64,6 +64,9 @@ export async function destroySession() {
   jar.delete(SESSION_COOKIE);
 }
 
+/** How stale `lastSeenAt` may get before the read path pays for a write. */
+const SEEN_INTERVAL_MS = 30 * 60_000;
+
 /** Cached per request so a page and its components share one lookup. */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const jar = await cookies();
@@ -76,8 +79,35 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   });
 
   if (!session || session.expiresAt < new Date()) return null;
+
+  // A disabled account resolves to nobody, so an admin disabling someone takes
+  // effect on their next request rather than at their next sign-in.
+  if (session.user.disabledAt) return null;
+
+  touch(session.user);
   return session.user;
 });
+
+/**
+ * Records that the account is in use, for the admin "active users" figures.
+ *
+ * Deliberately fire-and-forget and guarded in the WHERE clause: it is one
+ * statement that matches nothing at all for the next half hour, and a failure
+ * must never break the request that triggered it.
+ */
+function touch(user: SessionUser) {
+  const stale =
+    !user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > SEEN_INTERVAL_MS;
+  if (!stale) return;
+
+  const cutoff = new Date(Date.now() - SEEN_INTERVAL_MS);
+  void prisma.user
+    .updateMany({
+      where: { id: user.id, OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: cutoff } }] },
+      data: { lastSeenAt: new Date() },
+    })
+    .catch(() => undefined);
+}
 
 export class AuthRequiredError extends Error {
   constructor() {
@@ -95,4 +125,9 @@ export async function requireUser(): Promise<SessionUser> {
 
 export function hasLifetime(entitlement: Entitlement): boolean {
   return entitlement === "LIFETIME";
+}
+
+/** Ends every live session for an account. Used when disabling or forcing a reset. */
+export async function revokeAllSessions(userId: string) {
+  await prisma.session.deleteMany({ where: { userId } });
 }

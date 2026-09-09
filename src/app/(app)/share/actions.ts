@@ -235,7 +235,10 @@ export async function uploadSharePhoto(input: {
 /** Quotes the user can pick from, for the "choose another quote" option. */
 export async function quoteChoices() {
   const quotes = await prisma.quote.findMany({
-    where: { category: { in: ["DAILY", "STREAK", "ENCOURAGEMENT", "MILESTONE", "FUNNY"] } },
+    where: {
+      isActive: true,
+      category: { in: ["DAILY", "STREAK", "ENCOURAGEMENT", "MILESTONE", "FUNNY"] },
+    },
     select: { id: true, text: true },
     orderBy: { text: "asc" },
     take: 60,

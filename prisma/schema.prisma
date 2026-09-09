@@ -20,6 +20,21 @@ enum Entitlement {
   LIFETIME
 }
 
+/// How an account came by its entitlement. FREE accounts have none.
+enum EntitlementSource {
+  /// Bought it, through whatever provider `entitlementProvider` names.
+  PAID
+  /// Given it — beta testers, giveaways, community admins.
+  COMPLIMENTARY
+}
+
+/// Who may do what. Authorization is decided from this column server-side on
+/// every admin page, action and route; nothing is gated by hiding UI.
+enum Role {
+  USER
+  PLATFORM_ADMIN
+}
+
 model User {
   id           String      @id @default(cuid())
   email        String      @unique
@@ -30,6 +45,28 @@ model User {
   onboardedAt  DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  role Role @default(USER)
+
+  /// Whether the entitlement was bought or given, and why. Only set alongside
+  /// LIFETIME; cleared when it is revoked.
+  entitlementSource   EntitlementSource?
+  /// "stripe", "apple", "google", "manual" — whatever granted it.
+  entitlementProvider String?            @db.VarChar(40)
+  /// Why a complimentary account was comped. Admin-facing only.
+  entitlementNote     String?            @db.VarChar(200)
+
+  /// Set when an admin disables the account. A disabled account cannot sign in
+  /// and its live sessions stop resolving.
+  disabledAt DateTime?
+
+  /// Set when an admin forces a password reset. The user keeps their password
+  /// long enough to sign in once, then must choose a new one before going on.
+  passwordResetAt DateTime?
+
+  /// Last time this account made an authenticated request. Written at most once
+  /// every 30 minutes, so it costs almost nothing on the read path.
+  lastSeenAt DateTime?
 
   profile       Profile?
   accounts      Account[]
@@ -50,6 +87,14 @@ model User {
   shareEvents   ShareEvent[]
   savedLines    SavedLine[]
   sharePhotos   SharePhoto[]
+  feedback      Feedback[]
+  adminActions  AdminAuditLog[]         @relation("AdminActor")
+  actionsOnMe   AdminAuditLog[]         @relation("AdminTarget")
+
+  @@index([createdAt])
+  @@index([entitlement])
+  @@index([lastSeenAt])
+  @@index([entitledAt])
 }
 
 /// Present from day one so Google/Apple sign-in is a row, not a migration.
@@ -125,6 +170,12 @@ model Profile {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The admin user list sorts on these, so they are indexed rather than
+  /// recomputed per row.
+  @@index([totalDays])
+  @@index([currentStreak])
+  @@index([lastLoggedOn])
 }
 
 // ------------------------------------------------------------------- goals --
@@ -178,6 +229,8 @@ model CayenneEntry {
 
   @@index([userId, takenOn])
   @@index([userId, takenAt])
+  /// Admin reporting rolls entries up by day across all users.
+  @@index([takenOn])
 }
 
 /// Why the user took it — links an entry to the goals they picked at onboarding.
@@ -252,9 +305,23 @@ model Quote {
   text     String        @unique @db.VarChar(240)
   category QuoteCategory
 
+  /// Retired quotes stay for the impression history that references them, but
+  /// are never picked again. Admins disable rather than delete.
+  isActive Boolean @default(true)
+
+  /// Optional targeting. `tone` reuses the share-card personalities so one
+  /// vocabulary covers both; `milestoneDays` marks a line that only makes sense
+  /// at a particular streak length.
+  tone          ShareTone?
+  milestoneDays Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
   impressions QuoteImpression[]
 
   @@index([category])
+  @@index([isActive, category])
 }
 
 /// One row per user per day keeps the daily quote stable and non-repeating.
@@ -323,8 +390,12 @@ model Challenge {
   durationDays Int
   sortOrder    Int     @default(0)
   isPremium    Boolean @default(false)
+  /// Retired challenges disappear from the catalog but keep their participants.
+  isActive     Boolean @default(true)
 
   participants UserChallenge[]
+
+  @@index([isActive, sortOrder])
 }
 
 model UserChallenge {
@@ -340,6 +411,8 @@ model UserChallenge {
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
+  @@index([createdAt])
+  @@index([completedAt])
 }
 
 // ----------------------------------------------------------------- recipes --
@@ -374,6 +447,7 @@ model Recipe {
 
   @@index([category])
   @@index([authorId])
+  @@index([isSystem, createdAt])
 }
 
 model RecipeIngredient {
@@ -617,4 +691,116 @@ model ShareEvent {
 
   @@index([userId, createdAt])
   @@index([event, createdAt])
+}
+
+// ------------------------------------------------------------------- admin --
+
+/// Everything an admin can do that changes somebody else's account or the
+/// app's content. Each value is one auditable action.
+enum AdminAction {
+  GRANT_LIFETIME
+  REVOKE_LIFETIME
+  DISABLE_ACCOUNT
+  ENABLE_ACCOUNT
+  FORCE_PASSWORD_RESET
+  ROLE_CHANGED
+  QUOTE_CREATED
+  QUOTE_UPDATED
+  QUOTE_DISABLED
+  QUOTE_ENABLED
+  CHALLENGE_CREATED
+  CHALLENGE_UPDATED
+  ACHIEVEMENT_UPDATED
+  FEEDBACK_UPDATED
+}
+
+/// An append-only record of admin activity.
+///
+/// Email and target email are copied in rather than joined, so the log still
+/// reads correctly after an account is deleted — an audit trail that can be
+/// erased by deleting a row elsewhere is not an audit trail. `beforeState` and
+/// `afterState` are short human-readable summaries ("entitlement=FREE" ->
+/// "entitlement=LIFETIME source=COMPLIMENTARY") rather than blobs, so the log
+/// is legible without a decoder.
+model AdminAuditLog {
+  id         String      @id @default(cuid())
+  adminId    String?
+  adminEmail String
+  action     AdminAction
+
+  targetUserId    String?
+  targetUserEmail String?
+  /// For actions whose target is not a user: a quote id, a challenge slug.
+  targetLabel     String? @db.VarChar(120)
+
+  beforeState String? @db.VarChar(400)
+  afterState  String? @db.VarChar(400)
+  note        String? @db.VarChar(400)
+
+  createdAt DateTime @default(now())
+
+  admin  User? @relation("AdminActor", fields: [adminId], references: [id], onDelete: SetNull)
+  target User? @relation("AdminTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([targetUserId, createdAt])
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE
+  GENERAL
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWING
+  PLANNED
+  RESOLVED
+  CLOSED
+}
+
+/// What users tell us, unprompted. Deliberately free of anything the user did
+/// not type: no attached measurements, no journal, no diagnostics.
+model Feedback {
+  id        String         @id @default(cuid())
+  userId    String?
+  type      FeedbackType
+  message   String         @db.VarChar(2000)
+  status    FeedbackStatus @default(NEW)
+  /// Admin-only working notes. Never shown to the user who wrote the feedback.
+  adminNote String?        @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+/// One immutable row per finished UTC day.
+///
+/// Admin analytics never scan the raw tables across a date range. A past day
+/// cannot change, so it is rolled up once, on the first dashboard load that
+/// needs it, and read from here forever after. Only the current day is computed
+/// live. This is what keeps the dashboard a handful of indexed reads no matter
+/// how much history accumulates.
+model DailyStat {
+  day DateTime @id @db.Date
+
+  signups           Int @default(0)
+  activeUsers       Int @default(0)
+  entries           Int @default(0)
+  shareCards        Int @default(0)
+  shareImagesSaved  Int @default(0)
+  purchases         Int @default(0)
+  challengesStarted Int @default(0)
+  challengesDone    Int @default(0)
+  recipesCreated    Int @default(0)
+
+  computedAt DateTime @default(now())
 }
