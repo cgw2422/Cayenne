@@ -464,10 +464,10 @@ enum ShareKind {
 enum ShareTheme {
   SIGNATURE
   ON_FIRE
-  PEPPER_COUNTRY
+  FRESH_CAYENNE
+  MASCOT
   MINIMAL
-  CELEBRATION
-  SOCIAL
+  FACEBOOK
 }
 
 enum ShareSize {

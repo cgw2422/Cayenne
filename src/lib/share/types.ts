@@ -30,10 +30,10 @@ export const KIND_META: Record<
 export const THEME_IDS = [
   "SIGNATURE",
   "ON_FIRE",
-  "PEPPER_COUNTRY",
+  "FRESH_CAYENNE",
+  "MASCOT",
   "MINIMAL",
-  "CELEBRATION",
-  "SOCIAL",
+  "FACEBOOK",
 ] as const;
 
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -41,10 +41,10 @@ export type ThemeId = (typeof THEME_IDS)[number];
 export const THEME_LABEL: Record<ThemeId, string> = {
   SIGNATURE: "Signature",
   ON_FIRE: "On Fire",
-  PEPPER_COUNTRY: "Pepper Country",
+  FRESH_CAYENNE: "Fresh Cayenne",
+  MASCOT: "Mascot",
   MINIMAL: "Minimal",
-  CELEBRATION: "Celebration",
-  SOCIAL: "Social",
+  FACEBOOK: "Facebook",
 };
 
 /** Export sizes. Facebook is the default — it's the distribution channel. */
@@ -152,6 +152,10 @@ export type CardSpec = {
   heroTitle: string | null;
   subline: string | null;
   stats: { icon: IconName; label: string; value: string }[];
+  /** The line with personality. This is the scroll-stopper, not a stat. */
+  voice: string;
+  /** Quiet descriptor under the voice line, e.g. "30 Day Hot Streak". */
+  descriptor: string | null;
   quote: string | null;
   ring: { done: number; total: number; percent: number } | null;
   footnote: string | null;

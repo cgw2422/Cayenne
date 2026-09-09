@@ -91,13 +91,13 @@ async function main() {
   const kinds: [ShareKind, ThemeId, typeof DEFAULT_TOGGLES][] = [
     ["JOURNEY", "SIGNATURE", { ...DEFAULT_TOGGLES, consistency: true, startDate: true }],
     ["CHALLENGE", "ON_FIRE", { ...DEFAULT_TOGGLES, streak: true }],
-    ["ACHIEVEMENT", "CELEBRATION", DEFAULT_TOGGLES],
+    ["ACHIEVEMENT", "MASCOT", DEFAULT_TOGGLES],
     [
       "MONTHLY_RECAP",
-      "PEPPER_COUNTRY",
+      "FRESH_CAYENNE",
       { ...DEFAULT_TOGGLES, amount: true, method: true, achievement: true },
     ],
-    ["PROGRESS", "SOCIAL", { ...DEFAULT_TOGGLES, consistency: true, method: true }],
+    ["PROGRESS", "FACEBOOK", { ...DEFAULT_TOGGLES, consistency: true, method: true }],
     ["PEP_TALK", "MINIMAL", DEFAULT_TOGGLES],
   ];
   for (const [kind, theme, toggles] of kinds) {
@@ -106,7 +106,7 @@ async function main() {
 
   // Every export size, so nothing overflows on the tall ones.
   for (const size of Object.keys(SIZES) as SizeId[]) {
-    jobs.push(write(`size-${size}`, "HOT_STREAK", "SOCIAL", size));
+    jobs.push(write(`size-${size}`, "HOT_STREAK", "FACEBOOK", size));
   }
 
   await Promise.all(jobs);

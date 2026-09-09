@@ -1,180 +1,132 @@
 import type { ThemeId } from "@/lib/share/types";
 
 /**
- * A theme is a palette plus a few structural switches. Every card type renders
- * through the same slot layout, so adding a seventh theme means adding one
- * object here — no new render code.
+ * A theme is a palette plus a layout choice. Each `layout` is a genuinely
+ * different composition — not the same stack with a new background — so someone
+ * scrolling past several of these over time starts to recognise the brand
+ * rather than seeing six recolours of one card.
  */
 export type Theme = {
   id: ThemeId;
-  /** CSS background for the card surface. Linear gradients only — radial ones
-   *  render unpredictably in the image renderer. */
+  layout: "signature" | "onFire" | "fresh" | "mascot" | "minimal" | "facebook";
   background: string;
-  /** Optional wash layered over the top third, for depth. */
-  wash: string | null;
   ink: string;
   inkSoft: string;
   accent: string;
   accentSoft: string;
-  /** Hero number colour — usually accent, but inverted on dark themes. */
   hero: string;
-  chipBg: string;
-  chipBorder: string;
-  chipInk: string;
-  chipValue: string;
-  quoteInk: string;
   rule: string;
-  /** `tracked` is the understated Strava-style line; `block` is the wordmark. */
-  footer: "tracked" | "block";
-  /** Decoration behind the hero. Kept deliberately sparse — the renderer has no
-   *  blur, so scattered specks read as dust rather than atmosphere. */
-  decoration: "none" | "confetti" | "grain";
-  /** Colour for the decoration, which is rarely the same as the accent. */
-  decorationColor: string;
+  /** Pepper illustration colours, tuned per background. */
+  pepper: { body: string; shade: string; stem: string };
+  /** `tracked` is the understated line; `lockup` is the full brand block. */
+  lockup: "tracked" | "lockup";
   showDomain: boolean;
 };
 
 export const THEMES: Record<ThemeId, Theme> = {
-  // Warm cream, cayenne red, brand-forward. The house style.
+  // Cream and cayenne red, with an illustrated pepper anchoring the number.
   SIGNATURE: {
     id: "SIGNATURE",
-    background: "linear-gradient(170deg,#FFFDF8 0%,#FFF7E8 55%,#F8ECD6 100%)",
-    wash: null,
+    layout: "signature",
+    background: "linear-gradient(168deg,#FFFDF8 0%,#FFF7E8 58%,#F6E8CE 100%)",
     ink: "#202020",
     inkSoft: "#6B6660",
     accent: "#D92D20",
     accentSoft: "#F15A24",
     hero: "#D92D20",
-    chipBg: "#FFFFFF",
-    chipBorder: "#EDDFC4",
-    chipInk: "#6B6660",
-    chipValue: "#202020",
-    quoteInk: "#3D3A36",
-    rule: "#EDDFC4",
-    footer: "block",
-    decoration: "none",
-    decorationColor: "transparent",
+    rule: "#E7D8BB",
+    pepper: { body: "#D92D20", shade: "#A3170F", stem: "#2F6B53" },
+    lockup: "lockup",
     showDomain: false,
   },
 
-  // Dark, dramatic, built around an enormous glowing number.
+  // Dark and dramatic: heat rings behind the number, flames along the base.
   ON_FIRE: {
     id: "ON_FIRE",
-    background: "linear-gradient(168deg,#2A0F0A 0%,#1A1512 42%,#202020 100%)",
-    wash:
-      "linear-gradient(180deg, rgba(241,90,36,0.34) 0%, rgba(217,45,32,0.10) 55%, rgba(32,32,32,0) 100%)",
+    layout: "onFire",
+    background: "linear-gradient(172deg,#231007 0%,#180D08 48%,#120A06 100%)",
     ink: "#FFF7E8",
     inkSoft: "rgba(255,247,232,0.62)",
     accent: "#FF8A4C",
     accentSoft: "#FFB020",
     hero: "#FFF7E8",
-    chipBg: "rgba(255,247,232,0.08)",
-    chipBorder: "rgba(255,247,232,0.16)",
-    chipInk: "rgba(255,247,232,0.58)",
-    chipValue: "#FFF7E8",
-    quoteInk: "rgba(255,247,232,0.76)",
-    rule: "rgba(255,247,232,0.14)",
-    footer: "block",
-    decoration: "none",
-    decorationColor: "transparent",
+    rule: "rgba(255,247,232,0.16)",
+    pepper: { body: "#FF6A45", shade: "#C9271B", stem: "#4CB07C" },
+    lockup: "lockup",
     showDomain: false,
   },
 
-  // Earthy, rustic-but-modern. Deep pepper green and warm clay.
-  PEPPER_COUNTRY: {
-    id: "PEPPER_COUNTRY",
-    background: "linear-gradient(165deg,#F4E7D0 0%,#E8D5B5 48%,#D9BE95 100%)",
-    wash: "linear-gradient(180deg, rgba(18,55,42,0.10) 0%, rgba(18,55,42,0) 60%)",
+  // Natural and editorial: whole peppers and a drift of ground cayenne.
+  FRESH_CAYENNE: {
+    id: "FRESH_CAYENNE",
+    layout: "fresh",
+    background: "linear-gradient(168deg,#F6EBD8 0%,#EFDDC0 52%,#E3CBA4 100%)",
     ink: "#12372A",
-    inkSoft: "#5A6B5C",
+    inkSoft: "#5E6B57",
     accent: "#B52117",
     accentSoft: "#D9450F",
     hero: "#12372A",
-    chipBg: "rgba(255,253,248,0.72)",
-    chipBorder: "rgba(18,55,42,0.16)",
-    chipInk: "#5A6B5C",
-    chipValue: "#12372A",
-    quoteInk: "#3A4A3C",
-    rule: "rgba(18,55,42,0.18)",
-    footer: "block",
-    decoration: "grain",
-    decorationColor: "#B52117",
+    rule: "rgba(18,55,42,0.22)",
+    pepper: { body: "#C62A18", shade: "#8E1A0E", stem: "#2F6B53" },
+    lockup: "lockup",
     showDomain: true,
   },
 
-  // Almost all white, enormous type, nothing else.
+  // The character carries it: mascot beside the number, speech bubble, confetti.
+  MASCOT: {
+    id: "MASCOT",
+    layout: "mascot",
+    background: "linear-gradient(160deg,#FFF3D8 0%,#FFE0B8 55%,#FFCE95 100%)",
+    ink: "#202020",
+    inkSoft: "#7A6A55",
+    accent: "#D92D20",
+    accentSoft: "#F15A24",
+    hero: "#D92D20",
+    rule: "rgba(32,32,32,0.14)",
+    pepper: { body: "#DE3020", shade: "#A3170F", stem: "#2F6B53" },
+    lockup: "lockup",
+    showDomain: false,
+  },
+
+  // Enormous type, left-aligned, almost nothing else.
   MINIMAL: {
     id: "MINIMAL",
-    background: "linear-gradient(180deg,#FFFFFF 0%,#FFFDF8 100%)",
-    wash: null,
-    ink: "#202020",
+    layout: "minimal",
+    background: "linear-gradient(180deg,#FFFFFF 0%,#FFFCF5 100%)",
+    ink: "#181818",
     inkSoft: "#8A857E",
     accent: "#D92D20",
     accentSoft: "#D92D20",
-    hero: "#202020",
-    chipBg: "transparent",
-    chipBorder: "transparent",
-    chipInk: "#8A857E",
-    chipValue: "#202020",
-    quoteInk: "#6B6660",
-    rule: "#EFE9DE",
-    footer: "tracked",
-    decoration: "none",
-    decorationColor: "transparent",
+    hero: "#181818",
+    rule: "#ECE5D8",
+    pepper: { body: "#D92D20", shade: "#A3170F", stem: "#2F6B53" },
+    lockup: "tracked",
     showDomain: false,
   },
 
-  // For achievements and milestones. Confetti, warmth, a sense of occasion.
-  CELEBRATION: {
-    id: "CELEBRATION",
-    background: "linear-gradient(160deg,#D92D20 0%,#F15A24 38%,#FFB020 100%)",
-    wash: "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 45%)",
-    ink: "#FFFDF8",
-    inkSoft: "rgba(255,253,248,0.78)",
-    accent: "#FFFDF8",
-    accentSoft: "#12372A",
-    hero: "#FFFDF8",
-    chipBg: "rgba(255,253,248,0.16)",
-    chipBorder: "rgba(255,253,248,0.30)",
-    chipInk: "rgba(255,253,248,0.80)",
-    chipValue: "#FFFDF8",
-    quoteInk: "rgba(255,253,248,0.88)",
-    rule: "rgba(255,253,248,0.28)",
-    footer: "block",
-    decoration: "confetti",
-    decorationColor: "#FFFDF8",
-    showDomain: false,
-  },
-
-  // Tuned for a Facebook feed: deep green, high contrast, "Tracked with" line.
-  SOCIAL: {
-    id: "SOCIAL",
-    background: "linear-gradient(168deg,#22664E 0%,#14402F 46%,#08190F 100%)",
-    // No warm wash here: orange over deep green renders khaki, not heat.
-    wash: null,
+  // Built to stop a thumb: the voice line leads, in a red band, above the number.
+  FACEBOOK: {
+    id: "FACEBOOK",
+    layout: "facebook",
+    background: "linear-gradient(178deg,#14402F 0%,#0E2E22 62%,#081A12 100%)",
     ink: "#FFF7E8",
-    inkSoft: "rgba(255,247,232,0.60)",
-    accent: "#FF8A4C",
-    accentSoft: "#FFB020",
+    inkSoft: "rgba(255,247,232,0.66)",
+    accent: "#FFB020",
+    accentSoft: "#F15A24",
     hero: "#FFF7E8",
-    chipBg: "rgba(255,247,232,0.09)",
-    chipBorder: "rgba(255,247,232,0.16)",
-    chipInk: "rgba(255,247,232,0.56)",
-    chipValue: "#FFF7E8",
-    quoteInk: "rgba(255,247,232,0.74)",
-    rule: "rgba(255,247,232,0.14)",
-    footer: "tracked",
-    decoration: "none",
-    decorationColor: "transparent",
+    rule: "rgba(255,247,232,0.18)",
+    pepper: { body: "#FF6A45", shade: "#C9271B", stem: "#4CB07C" },
+    lockup: "tracked",
     showDomain: true,
   },
 };
 
 /** The theme that suits each card type best, used as the initial selection. */
 export function defaultThemeFor(kind: string): ThemeId {
-  if (kind === "ACHIEVEMENT") return "CELEBRATION";
-  if (kind === "HOT_STREAK") return "ON_FIRE";
+  if (kind === "ACHIEVEMENT") return "MASCOT";
+  if (kind === "HOT_STREAK") return "FACEBOOK";
   if (kind === "PEP_TALK") return "MINIMAL";
-  if (kind === "MONTHLY_RECAP") return "PEPPER_COUNTRY";
+  if (kind === "MONTHLY_RECAP") return "FRESH_CAYENNE";
+  if (kind === "CHALLENGE") return "ON_FIRE";
   return "SIGNATURE";
 }
